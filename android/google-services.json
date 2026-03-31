@@ -1,5 +1,4 @@
 {
-  "_comment": "INSTRUCTIONS: Dans la console Firebase > Paramètres du projet > Ajouter une application > Android. Package name: com.lumio.app. Télécharger le vrai google-services.json et remplacer ce fichier. NE JAMAIS committer le vrai fichier dans un repo public.",
   "project_info": {
     "project_number": "1076911403682",
     "project_id": "lumio-8ed03",
@@ -8,19 +7,37 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "REMPLACER_PAR_VALEUR_FIREBASE",
+        "mobilesdk_app_id": "1:1076911403682:android:157e40d7f9084cf9859dfb",
         "android_client_info": {
           "package_name": "com.lumio.app"
         }
       },
+      "oauth_client": [
+        {
+          "client_id": "1076911403682-9q5ej7431qr52n3lo82c4erve3ea8pm1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "REMPLACER_PAR_VALEUR_FIREBASE"
+          "current_key": "AIzaSyB5UnRyTYy29JbUKudn-UBivoENVoQ7iiM"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1076911403682-9q5ej7431qr52n3lo82c4erve3ea8pm1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1076911403682-82tb6kq4d116bcvhjk3so7nma1l7j5fl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.lumio.app"
+              }
+            }
+          ]
         }
       }
     }
