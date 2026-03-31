@@ -1,7 +1,7 @@
 import { useAuth, ROLES } from "../context/AuthContext";
 
 export function useProfile() {
-  const { user, role, loading, login, register, logout } = useAuth();
+  const { user, role, loading, login, register, loginWithGoogle, logout } = useAuth();
 
   return {
     user,
@@ -12,6 +12,7 @@ export function useProfile() {
     isAdmin: role === ROLES.ADMIN,
     login,
     register,
+    loginWithGoogle,
     logout,
   };
 }
