@@ -25,29 +25,36 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // Créer ou mettre à jour le profil Firestore
-      const profileRef = doc(db, "users", firebaseUser.uid);
-      const profileSnap = await getDoc(profileRef);
-      if (!profileSnap.exists()) {
-        await setDoc(profileRef, {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName ?? "",
-          createdAt: serverTimestamp(),
-        });
-      }
+      try {
+        // Créer ou mettre à jour le profil Firestore
+        const profileRef = doc(db, "users", firebaseUser.uid);
+        const profileSnap = await getDoc(profileRef);
+        if (!profileSnap.exists()) {
+          await setDoc(profileRef, {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName ?? "",
+            createdAt: serverTimestamp(),
+          });
+        }
 
-      // Déterminer le rôle
-      if (firebaseUser.uid === ADMIN_UID) {
-        setRole(ROLES.ADMIN);
-      } else {
-        await initRevenueCat(firebaseUser.uid);
-        const paid = await isPaid();
-        setRole(paid ? ROLES.PAID : ROLES.FREE);
-      }
+        // Déterminer le rôle
+        if (firebaseUser.uid === ADMIN_UID) {
+          setRole(ROLES.ADMIN);
+        } else {
+          await initRevenueCat(firebaseUser.uid);
+          const paid = await isPaid();
+          setRole(paid ? ROLES.PAID : ROLES.FREE);
+        }
 
-      setUser(firebaseUser);
-      setLoading(false);
+        setUser(firebaseUser);
+      } catch {
+        // En cas d'erreur (Firestore, RevenueCat), on connecte quand même l'utilisateur
+        setUser(firebaseUser);
+        setRole(ROLES.FREE);
+      } finally {
+        setLoading(false);
+      }
     });
 
     return unsubscribe;
@@ -66,9 +73,17 @@ export function AuthProvider({ children }) {
 
   const logout = () => signOut(auth);
 
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
+        <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} />
+      </div>
+    );
+  }
+
   return (
     <AuthContext.Provider value={{ user, role, loading, login, register, loginWithGoogle, logout }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }
