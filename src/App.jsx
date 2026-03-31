@@ -1,8 +1,18 @@
+import { AuthProvider } from "./context/AuthContext";
+import { useProfile } from "./hooks/useProfile";
+import { LoginForm } from "./components/LoginForm";
+import { Home } from "./components/Home";
+
+function AppContent() {
+  const { user } = useProfile();
+  return user ? <Home /> : <LoginForm />;
+}
+
 function App() {
   return (
-    <div>
-      <h1>Lumio</h1>
-    </div>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
