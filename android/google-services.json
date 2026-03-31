@@ -1,0 +1,29 @@
+{
+  "_comment": "INSTRUCTIONS: Dans la console Firebase > Paramètres du projet > Ajouter une application > Android. Package name: com.lumio.app. Télécharger le vrai google-services.json et remplacer ce fichier. NE JAMAIS committer le vrai fichier dans un repo public.",
+  "project_info": {
+    "project_number": "1076911403682",
+    "project_id": "lumio-8ed03",
+    "storage_bucket": "lumio-8ed03.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "REMPLACER_PAR_VALEUR_FIREBASE",
+        "android_client_info": {
+          "package_name": "com.lumio.app"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "REMPLACER_PAR_VALEUR_FIREBASE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
