@@ -6,11 +6,11 @@ on:
       environment:
         description: "Environnement cible"
         required: true
-        default: "production"
+        default: "staging"
         type: choice
         options:
+          - staging
           - production
-          - preview
 
 jobs:
   deploy:
@@ -40,7 +40,20 @@ jobs:
           VITE_REVENUECAT_API_KEY: ${{ secrets.VITE_REVENUECAT_API_KEY }}
           VITE_ADMIN_UID: ${{ secrets.VITE_ADMIN_UID }}
 
-      - name: Deploy to Firebase Hosting (production)
+      # ── STAGING ──────────────────────────────────────────────────────────
+      # URL fixe : https://lumio-8ed03--staging.web.app
+      - name: Deploy to Staging
+        if: ${{ github.event.inputs.environment == 'staging' }}
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: lumio-8ed03
+          channelId: staging
+
+      # ── PRODUCTION ───────────────────────────────────────────────────────
+      # URL live : https://lumio-8ed03.web.app
+      - name: Deploy to Production
         if: ${{ github.event.inputs.environment == 'production' }}
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -48,11 +61,3 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: lumio-8ed03
           channelId: live
-
-      - name: Deploy to Firebase Hosting (preview)
-        if: ${{ github.event.inputs.environment == 'preview' }}
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: lumio-8ed03
