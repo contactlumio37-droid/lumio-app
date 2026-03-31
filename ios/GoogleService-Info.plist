@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  INSTRUCTIONS:
+  1. Dans la console Firebase (console.firebase.google.com)
+  2. Paramètres du projet > Ajouter une application > iOS
+  3. Bundle ID: com.lumio.app (ou le tien)
+  4. Télécharger le vrai GoogleService-Info.plist et remplacer ce fichier
+  5. NE JAMAIS committer le vrai fichier dans un repo public
+-->
+<plist version="1.0">
+<dict>
+  <key>API_KEY</key>
+  <string>REMPLACER_PAR_VALEUR_FIREBASE</string>
+  <key>GCM_SENDER_ID</key>
+  <string>REMPLACER_PAR_VALEUR_FIREBASE</string>
+  <key>PLIST_VERSION</key>
+  <string>1</string>
+  <key>BUNDLE_ID</key>
+  <string>com.lumio.app</string>
+  <key>PROJECT_ID</key>
+  <string>lumio-8ed03</string>
+  <key>STORAGE_BUCKET</key>
+  <string>lumio-8ed03.firebasestorage.app</string>
+  <key>IS_ADS_ENABLED</key>
+  <false/>
+  <key>IS_ANALYTICS_ENABLED</key>
+  <false/>
+  <key>IS_APPINVITE_ENABLED</key>
+  <true/>
+  <key>IS_GCM_ENABLED</key>
+  <true/>
+  <key>IS_SIGNIN_ENABLED</key>
+  <true/>
+  <key>GOOGLE_APP_ID</key>
+  <string>REMPLACER_PAR_VALEUR_FIREBASE</string>
+</dict>
+</plist>
