@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "firebase/auth";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { initRevenueCat, isPaid } from "../revenuecat";
@@ -82,10 +82,15 @@ export function AuthProvider({ children }) {
   const register = (email, password) =>
     createUserWithEmailAndPassword(auth, email, password);
 
+  const loginWithGoogle = () => {
+    const provider = new GoogleAuthProvider();
+    return signInWithPopup(auth, provider);
+  };
+
   const logout = () => signOut(auth);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, role, loading, login, register, loginWithGoogle, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );
