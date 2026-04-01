@@ -15,6 +15,7 @@ export function Home() {
   return (
     <div style={{ minHeight: "100vh", fontFamily: "sans-serif" }}>
       <LumioApp
+        userId={user.uid}
         userEmail={user.email}
         displayName={user.displayName}
         role={role}
