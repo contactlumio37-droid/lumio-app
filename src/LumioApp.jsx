@@ -1607,14 +1607,57 @@ function Parametres({
   );
 }
 
-function Admin({ th }) {
+function Admin({ th, userId, accent, lang }) {
+  const t = I18N[lang] || I18N.fr;
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    const load = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "feedbacks"), orderBy("createdAt", "desc")));
+        setFeedbacks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        console.error("Admin feedbacks load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [userId]);
+
   return (
-    <Card th={th}>
-      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, color: th.text }}>Admin</div>
-      <div style={{ fontSize: 12, color: th.text3 }}>
-        Espace admin non configuré dans cette version.
-      </div>
-    </Card>
+    <div>
+      <div style={{ fontWeight: 800, fontSize: 17, color: th.text, marginBottom: 14 }}>🔧 Admin</div>
+      <Card th={th} style={{ marginBottom: 12 }}>
+        <SLabel th={th}>💬 Feedbacks utilisateurs</SLabel>
+        {loading ? (
+          <div style={{ fontSize: 12, color: th.text3 }}>Chargement…</div>
+        ) : feedbacks.length === 0 ? (
+          <div style={{ fontSize: 12, color: th.text3 }}>Aucun feedback reçu.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {feedbacks.map(fb => (
+              <div key={fb.id} style={{ background: th.bg3, border: `1px solid ${th.border}`, borderRadius: 10, padding: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: fb.type === "bug" ? "#F87171" : accent }}>
+                    {fb.type === "bug" ? "🐛 Bug" : "💡 Idée"}
+                  </span>
+                  <span style={{ fontSize: 10, color: th.text3 }}>
+                    {fb.createdAt?.toDate ? fb.createdAt.toDate().toLocaleDateString(lang) : ""}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: th.text2 }}>{fb.text}</div>
+                {fb.userId && (
+                  <div style={{ fontSize: 10, color: th.text3, marginTop: 4 }}>uid: {fb.userId.slice(0, 8)}…</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -1906,52 +1949,29 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
     { id: "track", label: t.nav.track, icon: "📈" },
     { id: "journal", label: t.nav.journal, icon: "💭" },
     { id: "settings", label: t.nav.settings, icon: "⚙️" },
+    ...(role === "admin" ? [{ id: "admin", label: "Admin", icon: "🔧" }] : []),
   ];
 
   return (
     <div style={rootStyle}>
       <div style={pageWrapStyle}>
         {tab === "home" && (
-          <>
-            <Dashboard
-              data={data}
-              setData={setData}
-              objectives={objectives}
-              setObjectives={setObjectives}
-              widgets={widgets}
-              setWidgets={setWidgets}
-              trackers={trackers}
-              moods={moods}
-              accent={accent}
-              firstName={firstName}
-              plan={plan}
-              th={th}
-              lang={lang}
-              showAdPopup={showAdPopup}
-            />
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button
-                onClick={() => setShowRoadmapModal(true)}
-                style={{
-                  flex: 1, padding: "10px 0", borderRadius: 12, border: `1px solid ${th.border2}`,
-                  background: th.bg2, color: th.text2, cursor: "pointer", fontFamily: "inherit",
-                  fontWeight: 700, fontSize: 13,
-                }}
-              >
-                🗺 {(I18N[lang] || I18N.fr).roadmap}
-              </button>
-              <button
-                onClick={() => setShowFeedbackModal(true)}
-                style={{
-                  flex: 1, padding: "10px 0", borderRadius: 12, border: `1px solid ${th.border2}`,
-                  background: th.bg2, color: th.text2, cursor: "pointer", fontFamily: "inherit",
-                  fontWeight: 700, fontSize: 13,
-                }}
-              >
-                💬 {(I18N[lang] || I18N.fr).feedback}
-              </button>
-            </div>
-          </>
+          <Dashboard
+            data={data}
+            setData={setData}
+            objectives={objectives}
+            setObjectives={setObjectives}
+            widgets={widgets}
+            setWidgets={setWidgets}
+            trackers={trackers}
+            moods={moods}
+            accent={accent}
+            firstName={firstName}
+            plan={plan}
+            th={th}
+            lang={lang}
+            showAdPopup={showAdPopup}
+          />
         )}
 
         {tab === "entry" && (
@@ -2020,6 +2040,10 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
             onLogout={onLogout}
           />
         )}
+
+        {tab === "admin" && role === "admin" && (
+          <Admin th={th} userId={userId} accent={accent} lang={lang} />
+        )}
       </div>
 
       <div
@@ -2040,7 +2064,7 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
             margin: "0 auto",
             padding: "8px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
             display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)",
+            gridTemplateColumns: `repeat(${navItems.length}, 1fr)`,
             gap: 6,
           }}
         >
