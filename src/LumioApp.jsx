@@ -59,6 +59,7 @@ const I18N = {
     remaining:"restants",
     current:"actuel",
     firstName:"Prénom",
+    lastName:"Nom",
     profileSection:"👤 Profil",
   },
   en: {
@@ -115,6 +116,7 @@ const I18N = {
     remaining:"remaining",
     current:"current",
     firstName:"First name",
+    lastName:"Last name",
     profileSection:"👤 Profile",
   },
   es: {
@@ -171,6 +173,7 @@ const I18N = {
     remaining:"restantes",
     current:"actual",
     firstName:"Nombre",
+    lastName:"Apellido",
     profileSection:"👤 Perfil",
   },
   de: {
@@ -227,6 +230,7 @@ const I18N = {
     remaining:"übrig",
     current:"aktuell",
     firstName:"Vorname",
+    lastName:"Nachname",
     profileSection:"👤 Profil",
   },
   it: {
@@ -283,6 +287,7 @@ const I18N = {
     remaining:"rimanenti",
     current:"attuale",
     firstName:"Nome",
+    lastName:"Cognome",
     profileSection:"👤 Profilo",
   },
   pt: {
@@ -339,6 +344,7 @@ const I18N = {
     remaining:"restantes",
     current:"atual",
     firstName:"Nome",
+    lastName:"Sobrenome",
     profileSection:"👤 Perfil",
   },
 };
@@ -1280,6 +1286,8 @@ function Parametres({
   setMoods,
   firstName,
   setFirstName,
+  lastName,
+  setLastName,
   roadmap,
   feedbackItems,
   setFeedbackItems,
@@ -1340,14 +1348,13 @@ function Parametres({
 
       <Card th={th} style={{ marginBottom: 12 }}>
         <SLabel th={th}>{t.profileSection || "👤 Profil"}</SLabel>
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 8 }}>{t.firstName}</div>
-          <TInput
-            th={th}
-            value={firstName}
-            onChange={setFirstName}
-            placeholder={t.firstName}
-          />
+          <TInput th={th} value={firstName} onChange={setFirstName} placeholder={t.firstName} />
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 8 }}>{t.lastName || "Nom"}</div>
+          <TInput th={th} value={lastName} onChange={setLastName} placeholder={t.lastName || "Nom"} />
         </div>
       </Card>
 
@@ -1708,47 +1715,61 @@ function FeedbackModal({ feedbackItems, setFeedbackItems, userId, accent, th, la
   );
 }
 
+// ─── localStorage helpers ─────────────────────────────────────────────────────
+function lsGet(key, fallback = null) {
+  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; } catch { return fallback; }
+}
+function lsSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
 function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
-  const [tab, setTab] = useState("home");
-  const [lang, setLang] = useState("fr");
-  const [theme, setTheme] = useState("dark");
-  const [accent, setAccent] = useState("#7C9EFF");
-  const [gender, setGender] = useState("na");
-  const [notifications, setNotifications] = useState(true);
-  const [reminderTime, setReminderTime] = useState("20:00");
-  const [firstName, setFirstName] = useState(displayName || "");
+  // ── Synchronous localStorage load (instant — no flash on F5) ───────────────
+  const lsKey = `lumio_${userId}`;
+  const [ls] = useState(() => lsGet(lsKey, {}));
+  const [lsDays] = useState(() => lsGet(`${lsKey}_days`, null));
+
+  // Tab — persisted in sessionStorage so F5 stays on the same tab
+  const [tab, setTab] = useState(() => {
+    try { return sessionStorage.getItem("lumio_tab") || "home"; } catch { return "home"; }
+  });
+
+  const [lang, setLang] = useState(ls.lang || "fr");
+  const [theme, setTheme] = useState(ls.theme || "dark");
+  const [accent, setAccent] = useState(ls.accent || "#7C9EFF");
+  const [gender, setGender] = useState(ls.gender || "na");
+  const [notifications, setNotifications] = useState(typeof ls.notifications === "boolean" ? ls.notifications : true);
+  const [reminderTime, setReminderTime] = useState(ls.reminderTime || "20:00");
+  const [firstName, setFirstName] = useState(ls.firstName ?? (displayName ? displayName.split(" ")[0] : ""));
+  const [lastName, setLastName] = useState(ls.lastName ?? (displayName ? displayName.split(" ").slice(1).join(" ") : ""));
   const plan = (role === "paid" || role === "admin") ? "premium" : "free";
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showRoadmapModal, setShowRoadmapModal] = useState(false);
 
-  // Firestore sync: ref tracks whether initial load is done (prevents saving before loading)
+  // Firestore: ref tracks whether initial cloud load is done
   const fsLoaded = useRef(false);
   const saveTimer = useRef(null);
 
-  const [moods, setMoods] = useState(
-    DEFAULT_MOODS.map((m) => ({
-      ...m,
-      label: I18N.fr.moods[m.id] || m.id,
-    }))
+  const [moods, setMoods] = useState(() =>
+    Array.isArray(ls.moods) && ls.moods.length
+      ? ls.moods
+      : DEFAULT_MOODS.map((m) => ({ ...m, label: I18N.fr.moods[m.id] || m.id }))
   );
 
-  const [trackers, setTrackers] = useState([
-    TRACKER_CATALOGUE[0],
-    TRACKER_CATALOGUE[1],
-    TRACKER_CATALOGUE[2],
-    TRACKER_CATALOGUE[5],
-  ]);
+  const [trackers, setTrackers] = useState(() =>
+    Array.isArray(ls.trackers) && ls.trackers.length
+      ? ls.trackers
+      : [TRACKER_CATALOGUE[0], TRACKER_CATALOGUE[1], TRACKER_CATALOGUE[2], TRACKER_CATALOGUE[5]]
+  );
 
-  const [data, setData] = useState(() => ({
-    [CUR_M]: {},
-  }));
+  const [data, setData] = useState(() => lsDays || { [CUR_M]: {} });
 
-  const [objectives, setObjectives] = useState([]);
-  const [widgets, setWidgets] = useState(["objectives", "weekMoods", "streaks", "aiInsight"]);
-  const [journalEntries, setJournalEntries] = useState([]);
+  const [objectives, setObjectives] = useState(() => ls.objectives || []);
+  const [widgets, setWidgets] = useState(() => ls.widgets || ["objectives", "weekMoods", "streaks", "aiInsight"]);
+  const [journalEntries, setJournalEntries] = useState(() => ls.journalEntries || []);
   const [roadmap, setRoadmap] = useState(INIT_ROADMAP);
-  const [feedbackItems, setFeedbackItems] = useState([]);
+  const [feedbackItems, setFeedbackItems] = useState(() => ls.feedbackItems || []);
   const [showAd, setShowAd] = useState(false);
 
   const th = THEMES[theme] || THEMES.dark;
@@ -1768,6 +1789,27 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
       setShowAd(true);
     }
   }, [plan]);
+
+  // ── sessionStorage: persist active tab across F5 ────────────────────────────
+  useEffect(() => {
+    try { sessionStorage.setItem("lumio_tab", tab); } catch {}
+  }, [tab]);
+
+  // ── localStorage: persist all state synchronously on each change ────────────
+  useEffect(() => {
+    if (!userId) return;
+    lsSet(lsKey, {
+      lang, theme, accent, gender, notifications, reminderTime,
+      firstName, lastName, moods, trackers, widgets,
+      objectives, journalEntries, feedbackItems,
+    });
+  }, [lsKey, userId, lang, theme, accent, gender, notifications, reminderTime,
+      firstName, lastName, moods, trackers, widgets, objectives, journalEntries, feedbackItems]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!userId) return;
+    lsSet(`${lsKey}_days`, data);
+  }, [lsKey, userId, data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Firestore: load all user data on mount ──────────────────────────────────
   useEffect(() => {
@@ -1789,6 +1831,7 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
           if (typeof p.notifications === "boolean") setNotifications(p.notifications);
           if (p.reminderTime) setReminderTime(p.reminderTime);
           if (p.firstName) setFirstName(p.firstName);
+          if (p.lastName !== undefined) setLastName(p.lastName);
           if (Array.isArray(p.moods) && p.moods.length) setMoods(p.moods);
           if (Array.isArray(p.trackers) && p.trackers.length) setTrackers(p.trackers);
           if (Array.isArray(p.widgets) && p.widgets.length) setWidgets(p.widgets);
@@ -1816,7 +1859,7 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
 
   // ── Firestore: debounced save whenever any key state changes ────────────────
   const stateSnap = useRef({});
-  stateSnap.current = { lang, theme, accent, gender, notifications, reminderTime, firstName, moods, trackers, widgets, objectives, journalEntries, data };
+  stateSnap.current = { lang, theme, accent, gender, notifications, reminderTime, firstName, lastName, moods, trackers, widgets, objectives, journalEntries, data };
 
   const scheduleSave = useCallback(() => {
     if (!userId || !fsLoaded.current) return;
@@ -1828,7 +1871,7 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
           setDoc(doc(db, "users", userId, "settings", "prefs"), {
             lang: s.lang, theme: s.theme, accent: s.accent, gender: s.gender,
             notifications: s.notifications, reminderTime: s.reminderTime,
-            firstName: s.firstName, moods: s.moods, trackers: s.trackers, widgets: s.widgets,
+            firstName: s.firstName, lastName: s.lastName, moods: s.moods, trackers: s.trackers, widgets: s.widgets,
           }),
           setDoc(doc(db, "users", userId, "settings", "objectives"), { items: s.objectives }),
           setDoc(doc(db, "users", userId, "settings", "journal"), { entries: s.journalEntries }),
@@ -1841,7 +1884,7 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
   }, [userId]);
 
   useEffect(() => { scheduleSave(); },
-    [lang, theme, accent, gender, notifications, reminderTime, firstName, moods, trackers, widgets, objectives, journalEntries, data, scheduleSave]); // eslint-disable-line react-hooks/exhaustive-deps
+    [lang, theme, accent, gender, notifications, reminderTime, firstName, lastName, moods, trackers, widgets, objectives, journalEntries, data, scheduleSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rootStyle = {
     minHeight: "100vh",
@@ -1966,6 +2009,8 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
             setMoods={setMoods}
             firstName={firstName}
             setFirstName={setFirstName}
+            lastName={lastName}
+            setLastName={setLastName}
             roadmap={roadmap}
             feedbackItems={feedbackItems}
             setFeedbackItems={setFeedbackItems}
