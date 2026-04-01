@@ -25,47 +25,57 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // Créer ou mettre à jour le profil Firestore
-      const profileRef = doc(db, "users", firebaseUser.uid);
-      const profileSnap = await getDoc(profileRef);
+      try {
+        // Créer ou mettre à jour le profil Firestore
+        const profileRef = doc(db, "users", firebaseUser.uid);
+        const profileSnap = await getDoc(profileRef);
 
-      if (!profileSnap.exists()) {
-        // Nouvel utilisateur : déterminer le rôle et le persister
-        let newRole;
-        if (ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
-          newRole = ROLES.ADMIN;
-        } else {
-          await initRevenueCat(firebaseUser.uid);
-          const paid = await isPaid();
-          newRole = paid ? ROLES.PAID : ROLES.FREE;
-        }
-        await setDoc(profileRef, {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName ?? "",
-          createdAt: serverTimestamp(),
-          role: newRole,
-        });
-        setRole(newRole);
-      } else {
-        // Utilisateur existant : lire le rôle depuis Firestore
-        const storedRole = profileSnap.data().role;
-
-        if (storedRole === ROLES.ADMIN) {
-          setRole(ROLES.ADMIN);
-        } else if (!storedRole && ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
-          // Migration : doc existant sans champ role, et c'est l'admin
-          await updateDoc(profileRef, { role: ROLES.ADMIN });
-          setRole(ROLES.ADMIN);
-        } else {
-          // Vérifier RevenueCat au cas où l'abonnement a changé
-          await initRevenueCat(firebaseUser.uid);
-          const paid = await isPaid();
-          const resolvedRole = paid ? ROLES.PAID : ROLES.FREE;
-          if (!storedRole || storedRole !== resolvedRole) {
-            await updateDoc(profileRef, { role: resolvedRole });
+        if (!profileSnap.exists()) {
+          // Nouvel utilisateur : déterminer le rôle et le persister
+          let newRole;
+          if (ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
+            newRole = ROLES.ADMIN;
+          } else {
+            await initRevenueCat(firebaseUser.uid);
+            const paid = await isPaid();
+            newRole = paid ? ROLES.PAID : ROLES.FREE;
           }
-          setRole(resolvedRole);
+          await setDoc(profileRef, {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName ?? "",
+            createdAt: serverTimestamp(),
+            role: newRole,
+          });
+          setRole(newRole);
+        } else {
+          // Utilisateur existant : lire le rôle depuis Firestore
+          const storedRole = profileSnap.data().role;
+
+          if (storedRole === ROLES.ADMIN) {
+            setRole(ROLES.ADMIN);
+          } else if (!storedRole && ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
+            // Migration : doc existant sans champ role, et c'est l'admin
+            await updateDoc(profileRef, { role: ROLES.ADMIN });
+            setRole(ROLES.ADMIN);
+          } else {
+            // Vérifier RevenueCat au cas où l'abonnement a changé
+            await initRevenueCat(firebaseUser.uid);
+            const paid = await isPaid();
+            const resolvedRole = paid ? ROLES.PAID : ROLES.FREE;
+            if (!storedRole || storedRole !== resolvedRole) {
+              await updateDoc(profileRef, { role: resolvedRole });
+            }
+            setRole(resolvedRole);
+          }
+        }
+      } catch (err) {
+        console.error("Erreur Firestore lors du chargement du profil :", err);
+        // Si les règles Firestore bloquent, on détermine le rôle via l'UID admin
+        if (ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
+          setRole(ROLES.ADMIN);
+        } else {
+          setRole(ROLES.FREE);
         }
       }
 
