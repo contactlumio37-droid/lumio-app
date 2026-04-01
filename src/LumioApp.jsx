@@ -1083,6 +1083,723 @@ function Suivi({data,setData,trackers,moods,accent,th,lang}){
   </div>);
 }
 
-// NOTE: the rest of the file (Decharge, Parametres, Admin, App) remains identical to your original code.
-// Keeping it out of the canvas replacement here avoids accidental truncation during a giant regex update.
-// If you want, I can append the remaining unchanged blocks too in a second pass.
+/function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdPopup }) {
+  const t = I18N[lang] || I18N.fr;
+  const [mode, setMode] = useState("journal");
+  const [draft, setDraft] = useState("");
+  const [editingId, setEditingId] = useState(null);
+
+  const submitEntry = () => {
+    const content = draft.trim();
+    if (!content) return;
+
+    if (editingId) {
+      setJournalEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === editingId
+            ? { ...entry, content, updatedAt: new Date().toISOString() }
+            : entry
+        )
+      );
+      setEditingId(null);
+    } else {
+      setJournalEntries((prev) => [
+        {
+          id: Date.now(),
+          content,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+        },
+        ...prev,
+      ]);
+    }
+
+    setDraft("");
+    showAdPopup?.("journal");
+  };
+
+  const startEdit = (entry) => {
+    setDraft(entry.content);
+    setEditingId(entry.id);
+  };
+
+  const removeEntry = (id) => {
+    setJournalEntries((prev) => prev.filter((entry) => entry.id !== id));
+    if (editingId === id) {
+      setEditingId(null);
+      setDraft("");
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ fontWeight: 800, fontSize: 17, color: th.text, marginBottom: 10 }}>
+        {t.journal}
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <ToggleBar
+          th={th}
+          options={[
+            ["journal", t.journalMode],
+            ["stream", t.streamMode],
+          ]}
+          value={mode}
+          onChange={setMode}
+          accent={accent}
+          small
+        />
+      </div>
+
+      <Card th={th} style={{ marginBottom: 12 }}>
+        <SLabel th={th}>{editingId ? t.edit : t.deposit}</SLabel>
+        <RichEditor
+          value={draft}
+          onChange={setDraft}
+          placeholder={t.depositPlaceholder}
+          minHeight={140}
+          accent={accent}
+          th={th}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          {editingId && (
+            <Btn
+              th={th}
+              outline
+              color={accent}
+              onClick={() => {
+                setEditingId(null);
+                setDraft("");
+              }}
+              small
+            >
+              {t.cancel}
+            </Btn>
+          )}
+          <Btn th={th} color={accent} onClick={submitEntry} full>
+            {editingId ? t.savEdit : t.deposit}
+          </Btn>
+        </div>
+      </Card>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {journalEntries.length === 0 && (
+          <Card th={th}>
+            <div style={{ fontSize: 13, color: th.text3 }}>{t.depositPlaceholder}</div>
+          </Card>
+        )}
+
+        {journalEntries.map((entry) => (
+          <Card key={entry.id} th={th}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
+              <div style={{ fontSize: 11, color: th.text3 }}>
+                {new Date(entry.createdAt).toLocaleString()}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={() => startEdit(entry)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: accent,
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontFamily: "inherit",
+                    fontWeight: 700,
+                  }}
+                >
+                  {t.edit}
+                </button>
+                <button
+                  onClick={() => removeEntry(entry.id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#F87171",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontFamily: "inherit",
+                    fontWeight: 700,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: th.text,
+                fontSize: 14,
+                lineHeight: 1.8,
+                fontFamily: "Georgia, serif",
+              }}
+              dangerouslySetInnerHTML={{ __html: entry.content }}
+            />
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Parametres({
+  lang,
+  setLang,
+  theme,
+  setTheme,
+  accent,
+  setAccent,
+  gender,
+  setGender,
+  notifications,
+  setNotifications,
+  reminderTime,
+  setReminderTime,
+  moods,
+  setMoods,
+  roadmap,
+  feedbackItems,
+  setFeedbackItems,
+  plan,
+  th,
+  onLogout,
+}) {
+  const t = I18N[lang] || I18N.fr;
+  const [showMoodModal, setShowMoodModal] = useState(false);
+  const [feedbackType, setFeedbackType] = useState("idea");
+  const [feedbackText, setFeedbackText] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const accentOptions = ["#7C9EFF", "#4ADE80", "#F472B6", "#FBBF24", "#FB923C", "#2DD4BF"];
+  const genderOptions = [
+    ["male", t.maleG],
+    ["female", t.femaleG],
+    ["nb", t.nbG],
+    ["na", t.noG],
+  ];
+
+  const submitFeedback = () => {
+    const text = feedbackText.trim();
+    if (!text) return;
+
+    setFeedbackItems((prev) => [
+      {
+        id: Date.now(),
+        type: feedbackType,
+        text,
+        createdAt: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+
+    setFeedbackText("");
+    setSent(true);
+    setTimeout(() => setSent(false), 2500);
+  };
+
+  return (
+    <div>
+      <div style={{ fontWeight: 800, fontSize: 17, color: th.text, marginBottom: 14 }}>
+        {t.settings}
+      </div>
+
+      <Card th={th} style={{ marginBottom: 12 }}>
+        <SLabel th={th}>{t.general}</SLabel>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 8 }}>{t.language}</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {LANG_FLAGS.map((l) => (
+              <Pill
+                key={l.code}
+                active={lang === l.code}
+                color={accent}
+                th={th}
+                onClick={() => setLang(l.code)}
+              >
+                {l.flag} {l.label}
+              </Pill>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 8 }}>{t.theme}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {Object.entries(THEMES).map(([key, val]) => (
+              <Pill
+                key={key}
+                active={theme === key}
+                color={accent}
+                th={th}
+                onClick={() => setTheme(key)}
+              >
+                {val.icon} {key === "dark" ? t.themeDark : key === "light" ? t.themeLight : t.themeWarm}
+              </Pill>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 8 }}>{t.accentColor}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {accentOptions.map((c) => (
+              <button
+                key={c}
+                onClick={() => setAccent(c)}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  border: accent === c ? `3px solid ${th.text}` : `2px solid ${th.border2}`,
+                  background: c,
+                  cursor: "pointer",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 8 }}>{t.gender}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {genderOptions.map(([value, label]) => (
+              <Pill
+                key={value}
+                active={gender === value}
+                color={accent}
+                th={th}
+                onClick={() => setGender(value)}
+              >
+                {label}
+              </Pill>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <button
+            onClick={() => setShowMoodModal(true)}
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: 12,
+              border: `1px solid ${th.border2}`,
+              background: th.bg3,
+              color: th.text,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontWeight: 700,
+            }}
+          >
+            {t.customizeMoods}
+          </button>
+        </div>
+      </Card>
+
+      <Card th={th} style={{ marginBottom: 12 }}>
+        <SLabel th={th}>{t.notifications}</SLabel>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: th.text }}>{t.dailyReminder}</div>
+            <div style={{ fontSize: 11, color: th.text3 }}>{t.time}: {reminderTime}</div>
+          </div>
+          <Toggle value={notifications} onChange={setNotifications} accent={accent} />
+        </div>
+
+        <TInput
+          th={th}
+          type="time"
+          value={reminderTime}
+          onChange={setReminderTime}
+          placeholder="20:00"
+        />
+      </Card>
+
+      <Card th={th} style={{ marginBottom: 12 }}>
+        <SLabel th={th}>{t.plan}</SLabel>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: th.text }}>
+              {plan === "premium" ? t.premium : t.free}
+            </div>
+            <div style={{ fontSize: 11, color: th.text3 }}>{t.revenuecat}</div>
+          </div>
+          <div
+            style={{
+              padding: "6px 10px",
+              borderRadius: 999,
+              background: plan === "premium" ? accent + "22" : th.bg3,
+              color: plan === "premium" ? accent : th.text3,
+              fontSize: 12,
+              fontWeight: 800,
+            }}
+          >
+            {plan === "premium" ? "✦ Lumio+" : t.free}
+          </div>
+        </div>
+      </Card>
+
+      <Card th={th} style={{ marginBottom: 12 }}>
+        <SLabel th={th}>{t.roadmap}</SLabel>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {roadmap.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                background: th.bg3,
+                border: `1px solid ${th.border}`,
+                borderRadius: 12,
+                padding: 12,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 4 }}>
+                {item.title}
+              </div>
+              <div style={{ fontSize: 12, color: th.text2, marginBottom: 6 }}>{item.desc}</div>
+              <div style={{ fontSize: 11, color: accent, fontWeight: 700 }}>
+                {item.status} · {item.votes} vote{item.votes > 1 ? "s" : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card th={th} style={{ marginBottom: 12 }}>
+        <SLabel th={th}>{t.feedback}</SLabel>
+        <div style={{ fontSize: 12, color: th.text3, marginBottom: 10 }}>{t.voteHint}</div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <Pill
+            active={feedbackType === "bug"}
+            color="#F87171"
+            th={th}
+            onClick={() => setFeedbackType("bug")}
+          >
+            {t.bugType}
+          </Pill>
+          <Pill
+            active={feedbackType === "idea"}
+            color={accent}
+            th={th}
+            onClick={() => setFeedbackType("idea")}
+          >
+            {t.ideaType}
+          </Pill>
+        </div>
+
+        <textarea
+          value={feedbackText}
+          onChange={(e) => setFeedbackText(e.target.value)}
+          placeholder={feedbackType === "bug" ? t.bugPlaceholder : t.ideaPlaceholder}
+          rows={4}
+          style={{
+            width: "100%",
+            background: th.inputBg,
+            border: `1px solid ${th.border2}`,
+            borderRadius: 12,
+            padding: "10px 14px",
+            color: th.text,
+            fontSize: 13,
+            fontFamily: "inherit",
+            resize: "none",
+            boxSizing: "border-box",
+            marginBottom: 10,
+          }}
+        />
+
+        <Btn th={th} color={accent} onClick={submitFeedback} full>
+          {sent ? t.sent : t.send}
+        </Btn>
+
+        {feedbackItems.length > 0 && (
+          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+            {feedbackItems.slice(0, 5).map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  background: th.bg3,
+                  border: `1px solid ${th.border}`,
+                  borderRadius: 10,
+                  padding: 10,
+                }}
+              >
+                <div style={{ fontSize: 11, color: item.type === "bug" ? "#F87171" : accent, fontWeight: 800, marginBottom: 4 }}>
+                  {item.type === "bug" ? t.bugType : t.ideaType}
+                </div>
+                <div style={{ fontSize: 12, color: th.text2 }}>{item.text}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Btn th={th} outline color="#F87171" onClick={onLogout} full>
+        {t.logout}
+      </Btn>
+
+      {showMoodModal && (
+        <MoodModal
+          moods={moods}
+          setMoods={setMoods}
+          lang={lang}
+          accent={accent}
+          th={th}
+          onClose={() => setShowMoodModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Admin({ th }) {
+  return (
+    <Card th={th}>
+      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, color: th.text }}>Admin</div>
+      <div style={{ fontSize: 12, color: th.text3 }}>
+        Espace admin non configuré dans cette version.
+      </div>
+    </Card>
+  );
+}
+
+function LumioApp() {
+  const [tab, setTab] = useState("home");
+  const [lang, setLang] = useState("fr");
+  const [theme, setTheme] = useState("dark");
+  const [accent, setAccent] = useState("#7C9EFF");
+  const [gender, setGender] = useState("na");
+  const [notifications, setNotifications] = useState(true);
+  const [reminderTime, setReminderTime] = useState("20:00");
+  const [firstName] = useState("Yann");
+  const [plan, setPlan] = useState("free");
+
+  const [moods, setMoods] = useState(
+    DEFAULT_MOODS.map((m) => ({
+      ...m,
+      label: I18N.fr.moods[m.id] || m.id,
+    }))
+  );
+
+  const [trackers, setTrackers] = useState([
+    TRACKER_CATALOGUE[0],
+    TRACKER_CATALOGUE[1],
+    TRACKER_CATALOGUE[2],
+    TRACKER_CATALOGUE[5],
+  ]);
+
+  const [data, setData] = useState(() => ({
+    [CUR_M]: seedMonth(CUR_M, CUR_Y),
+  }));
+
+  const [objectives, setObjectives] = useState([]);
+  const [widgets, setWidgets] = useState(["objectives", "weekMoods", "streaks", "aiInsight"]);
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [roadmap, setRoadmap] = useState(INIT_ROADMAP);
+  const [feedbackItems, setFeedbackItems] = useState([]);
+  const [showAd, setShowAd] = useState(false);
+
+  const th = THEMES[theme] || THEMES.dark;
+  const t = I18N[lang] || I18N.fr;
+
+  useEffect(() => {
+    setMoods((prev) =>
+      prev.map((m) => ({
+        ...m,
+        label: m.id.startsWith("custom_") ? m.label : (t.moods[m.id] || m.label || m.id),
+      }))
+    );
+  }, [lang]);
+
+  const showAdPopup = useCallback((reason) => {
+    if (plan !== "premium" && (reason === "save" || reason === "journal")) {
+      setShowAd(true);
+    }
+  }, [plan]);
+
+  const rootStyle = {
+    minHeight: "100vh",
+    background: th.bg,
+    color: th.text,
+    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+    paddingBottom: 88,
+  };
+
+  const pageWrapStyle = {
+    maxWidth: 460,
+    margin: "0 auto",
+    padding: "18px 16px 24px",
+  };
+
+  const navItems = [
+    { id: "home", label: t.nav.home, icon: "🏠" },
+    { id: "entry", label: t.nav.entry, icon: "✍️" },
+    { id: "track", label: t.nav.track, icon: "📈" },
+    { id: "journal", label: t.nav.journal, icon: "💭" },
+    { id: "settings", label: t.nav.settings, icon: "⚙️" },
+  ];
+
+  return (
+    <div style={rootStyle}>
+      <div style={pageWrapStyle}>
+        {tab === "home" && (
+          <Dashboard
+            data={data}
+            setData={setData}
+            objectives={objectives}
+            setObjectives={setObjectives}
+            widgets={widgets}
+            setWidgets={setWidgets}
+            trackers={trackers}
+            moods={moods}
+            accent={accent}
+            firstName={firstName}
+            plan={plan}
+            th={th}
+            lang={lang}
+            showAdPopup={showAdPopup}
+          />
+        )}
+
+        {tab === "entry" && (
+          <Saisie
+            data={data}
+            setData={setData}
+            trackers={trackers}
+            setTrackers={setTrackers}
+            moods={moods}
+            accent={accent}
+            th={th}
+            lang={lang}
+            showAdPopup={showAdPopup}
+          />
+        )}
+
+        {tab === "track" && (
+          <Suivi
+            data={data}
+            setData={setData}
+            trackers={trackers}
+            moods={moods}
+            accent={accent}
+            th={th}
+            lang={lang}
+          />
+        )}
+
+        {tab === "journal" && (
+          <Decharge
+            journalEntries={journalEntries}
+            setJournalEntries={setJournalEntries}
+            accent={accent}
+            th={th}
+            lang={lang}
+            showAdPopup={showAdPopup}
+          />
+        )}
+
+        {tab === "settings" && (
+          <Parametres
+            lang={lang}
+            setLang={setLang}
+            theme={theme}
+            setTheme={setTheme}
+            accent={accent}
+            setAccent={setAccent}
+            gender={gender}
+            setGender={setGender}
+            notifications={notifications}
+            setNotifications={setNotifications}
+            reminderTime={reminderTime}
+            setReminderTime={setReminderTime}
+            moods={moods}
+            setMoods={setMoods}
+            roadmap={roadmap}
+            feedbackItems={feedbackItems}
+            setFeedbackItems={setFeedbackItems}
+            plan={plan}
+            th={th}
+            onLogout={() => {
+              setTab("home");
+              setPlan("free");
+            }}
+          />
+        )}
+      </div>
+
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderTop: `1px solid ${th.border}`,
+          background: th.navBg,
+          backdropFilter: "blur(16px)",
+          zIndex: 200,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 460,
+            margin: "0 auto",
+            padding: "8px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            gap: 6,
+          }}
+        >
+          {navItems.map((item) => {
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                style={{
+                  border: "none",
+                  background: active ? accent + "22" : "transparent",
+                  color: active ? accent : th.text3,
+                  borderRadius: 14,
+                  padding: "8px 4px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{item.icon}</span>
+                <span style={{ fontSize: 11, fontWeight: active ? 800 : 600 }}>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {showAd && (
+        <AdPopup
+          onClose={() => setShowAd(false)}
+          onUpgrade={() => {
+            setPlan("premium");
+            setShowAd(false);
+          }}
+          accent={accent}
+          th={th}
+          t={t}
+        />
+      )}
+    </div>
+  );
+}
+
+export default LumioApp;
