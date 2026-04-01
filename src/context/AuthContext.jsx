@@ -32,13 +32,18 @@ export function AuthProvider({ children }) {
 
         if (!profileSnap.exists()) {
           // Nouvel utilisateur : déterminer le rôle et le persister
-          let newRole;
+          let newRole = ROLES.FREE;
           if (ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
             newRole = ROLES.ADMIN;
           } else {
-            await initRevenueCat(firebaseUser.uid);
-            const paid = await isPaid();
-            newRole = paid ? ROLES.PAID : ROLES.FREE;
+            try {
+              await initRevenueCat(firebaseUser.uid);
+              const paid = await isPaid();
+              newRole = paid ? ROLES.PAID : ROLES.FREE;
+            } catch (rcErr) {
+              console.warn("RevenueCat indisponible, rôle FREE par défaut :", rcErr);
+              newRole = ROLES.FREE;
+            }
           }
           await setDoc(profileRef, {
             uid: firebaseUser.uid,
@@ -60,13 +65,18 @@ export function AuthProvider({ children }) {
             setRole(ROLES.ADMIN);
           } else {
             // Vérifier RevenueCat au cas où l'abonnement a changé
-            await initRevenueCat(firebaseUser.uid);
-            const paid = await isPaid();
-            const resolvedRole = paid ? ROLES.PAID : ROLES.FREE;
-            if (!storedRole || storedRole !== resolvedRole) {
-              await updateDoc(profileRef, { role: resolvedRole });
+            try {
+              await initRevenueCat(firebaseUser.uid);
+              const paid = await isPaid();
+              const resolvedRole = paid ? ROLES.PAID : ROLES.FREE;
+              if (!storedRole || storedRole !== resolvedRole) {
+                await updateDoc(profileRef, { role: resolvedRole });
+              }
+              setRole(resolvedRole);
+            } catch (rcErr) {
+              console.warn("RevenueCat indisponible, rôle conservé :", rcErr);
+              setRole(storedRole || ROLES.FREE);
             }
-            setRole(resolvedRole);
           }
         }
       } catch (err) {
