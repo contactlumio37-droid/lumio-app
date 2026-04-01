@@ -1,5 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { db } from "./firebase";
+import { doc, setDoc, collection, addDoc, getDocs, updateDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -823,16 +825,48 @@ function Suivi({data,setData,trackers,moods,accent,th,lang}){
   </div>);
 }
 
-function Decharge({accent,th,lang}){
+function Decharge({accent,th,lang,userId}){
   const t=I18N[lang]||I18N.fr;
   const [mode,setMode]=useState("journal");
   const [html,setHtml]=useState("");
-  const [entries,setEntries]=useState([
-    {id:1,date:"12 mars 2026",html:"Journée <strong>compliquée</strong>. Le sommeil est mauvais depuis 3 jours. 😮‍💨"},
-    {id:2,date:"8 mars 2026",html:"Quelque chose s'est <u>dénoué</u>. Une heure de marche sans téléphone. ✨"},
-  ]);
+  const [entries,setEntries]=useState([]);
   const [editContent,setEditContent]=useState({});
-  const add=()=>{if(!html||html==="<br>")return;const date=NOW.toLocaleDateString(lang==="pt"?"pt-BR":lang,{day:"numeric",month:"long",year:"numeric"});setEntries([{id:Date.now(),date,html},...entries]);setHtml("");};
+
+  useEffect(()=>{
+    if(!userId) return;
+    (async()=>{
+      try{
+        const q=query(collection(db,"users",userId,"journal"),orderBy("createdAt","desc"));
+        const snap=await getDocs(q);
+        setEntries(snap.docs.map(d=>({id:d.id,...d.data()})));
+      }catch(e){console.error("Error loading journal:",e);}
+    })();
+  },[userId]);
+
+  const add=async()=>{
+    if(!html||html==="<br>")return;
+    const date=NOW.toLocaleDateString(lang==="pt"?"pt-BR":lang,{day:"numeric",month:"long",year:"numeric"});
+    if(userId){
+      try{
+        const ref=await addDoc(collection(db,"users",userId,"journal"),{date,html,createdAt:serverTimestamp()});
+        setEntries(es=>[{id:ref.id,date,html},...es]);
+      }catch(e){console.error("Error saving journal entry:",e);}
+    }else{
+      setEntries(es=>[{id:Date.now(),date,html},...es]);
+    }
+    setHtml("");
+  };
+
+  const saveEdit=async(entryId,newHtml)=>{
+    if(userId){
+      try{
+        await updateDoc(doc(db,"users",userId,"journal",entryId),{html:newHtml});
+      }catch(e){console.error("Error updating journal entry:",e);}
+    }
+    setEntries(es=>es.map(x=>x.id===entryId?{...x,html:newHtml}:x));
+    setEditContent(ec=>{const n={...ec};delete n[entryId];return n;});
+  };
+
   return(<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
       <div style={{fontWeight:800,fontSize:17,color:th.text}}>{t.journal}</div>
@@ -843,7 +877,7 @@ function Decharge({accent,th,lang}){
         <Card key={e.id} th={th} style={{borderLeft:`3px solid ${accent}44`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{fontSize:11,color:accent,fontWeight:700}}>{e.date}</div>
-            {!isEditing?<button onClick={()=>setEditContent({...editContent,[e.id]:e.html})} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{t.edit}</button>:<div style={{display:"flex",gap:8}}><button onClick={()=>{setEntries(es=>es.map(x=>x.id===e.id?{...x,html:editContent[e.id]}:x));const ec={...editContent};delete ec[e.id];setEditContent(ec);}} style={{background:"none",border:"none",color:accent,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>{t.savEdit}</button><button onClick={()=>{const ec={...editContent};delete ec[e.id];setEditContent(ec);}} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{t.cancel}</button></div>}
+            {!isEditing?<button onClick={()=>setEditContent({...editContent,[e.id]:e.html})} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{t.edit}</button>:<div style={{display:"flex",gap:8}}><button onClick={()=>saveEdit(e.id,editContent[e.id])} style={{background:"none",border:"none",color:accent,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>{t.savEdit}</button><button onClick={()=>{const ec={...editContent};delete ec[e.id];setEditContent(ec);}} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{t.cancel}</button></div>}
           </div>
           {isEditing?<RichEditor value={editContent[e.id]} onChange={v=>setEditContent({...editContent,[e.id]:v})} placeholder="…" minHeight={80} accent={accent} th={th}/>:<div style={{fontSize:13,fontFamily:"Georgia,serif",lineHeight:1.8,color:th.text2}} dangerouslySetInnerHTML={{__html:e.html}}/>}
         </Card>
@@ -860,13 +894,31 @@ function Decharge({accent,th,lang}){
   </div>);
 }
 
-function Parametres({accent,setAccent,lang,setLang,gender,setGender,themeName,setThemeName,notif,setNotif,notifTime,setNotifTime,roadmap,onVote,votedIds,moods,setMoods,th,onLogout}){
+function Parametres({accent,setAccent,lang,setLang,gender,setGender,themeName,setThemeName,notif,setNotif,notifTime,setNotifTime,roadmap,onVote,votedIds,moods,setMoods,th,onLogout,userId,displayName,userEmail}){
   const t=I18N[lang]||I18N.fr;
   const [tab,setTab]=useState("general");
   const [feedbackType,setFeedbackType]=useState("bug");
   const [feedbackText,setFeedbackText]=useState("");
   const [feedbackSent,setFeedbackSent]=useState(false);
   const [showMoodModal,setShowMoodModal]=useState(false);
+  const LANG_FLAGS_MAP={fr:"🇫🇷",en:"🇬🇧",es:"🇪🇸",de:"🇩🇪",it:"🇮🇹",pt:"🇧🇷"};
+  const sendFeedback=async()=>{
+    if(!feedbackText.trim())return;
+    if(userId){
+      addDoc(collection(db,"feedbacks"),{
+        type:feedbackType,
+        text:feedbackText.trim(),
+        userId,
+        userName:displayName||userEmail?.split("@")[0]||"Utilisateur",
+        userFlag:LANG_FLAGS_MAP[lang]||"🌍",
+        status:"open",
+        createdAt:serverTimestamp()
+      }).catch(console.error);
+    }
+    setFeedbackSent(true);
+    setFeedbackText("");
+    setTimeout(()=>setFeedbackSent(false),2500);
+  };
   const PRESETS=["#7C9EFF","#F472B6","#34D399","#FBBF24","#A78BFA","#FB923C","#60A5FA","#F87171","#E879F9","#2DD4BF"];
   const STATUS_MAP={building:"🔨 En développement",soon:"📋 Prévu",later:"💡 En réflexion"};
   const themeNames={dark:t.themeDark,light:t.themeLight,warm:t.themeWarm};
@@ -897,17 +949,47 @@ function Parametres({accent,setAccent,lang,setLang,gender,setGender,themeName,se
       </Card>}
     </>}
     {tab==="roadmap"&&<><div style={{fontSize:13,color:th.text2,marginBottom:14,lineHeight:1.6}}>{t.voteHint}</div>{["building","soon","later"].map(status=>{const items=roadmap.filter(r=>r.status===status);if(!items.length)return null;return<div key={status} style={{marginBottom:16}}><SLabel th={th}>{STATUS_MAP[status]}</SLabel>{items.map(r=>(<Card key={r.id} th={th} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1,marginRight:10}}><div style={{fontWeight:700,fontSize:13,color:th.text,marginBottom:2}}>{r.title}</div><div style={{fontSize:11,color:th.text3}}>{r.desc}</div></div><button onClick={()=>onVote(r.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"6px 10px",borderRadius:10,cursor:"pointer",background:votedIds.includes(r.id)?accent+"22":th.bg3,border:`1.5px solid ${votedIds.includes(r.id)?accent:th.border}`,color:votedIds.includes(r.id)?accent:th.text3,flexShrink:0}}><span style={{fontSize:13}}>{votedIds.includes(r.id)?"▲":"△"}</span><span style={{fontSize:11,fontWeight:700}}>{r.votes}</span></button></div></Card>))}</div>;})}  </>}
-    {tab==="feedback"&&<><div style={{fontSize:13,color:th.text2,marginBottom:14}}>Un bug ou une idée ?</div><Card th={th}><SLabel th={th}>Type</SLabel><div style={{display:"flex",gap:8,marginBottom:14}}><Pill active={feedbackType==="bug"} color="#F87171" th={th} onClick={()=>setFeedbackType("bug")}>{t.bugType}</Pill><Pill active={feedbackType==="idea"} color={accent} th={th} onClick={()=>setFeedbackType("idea")}>{t.ideaType}</Pill></div><SLabel th={th}>Description</SLabel><textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)} rows={4} placeholder={feedbackType==="bug"?t.bugPlaceholder:t.ideaPlaceholder} style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:12,padding:"10px 14px",color:th.text,fontSize:13,fontFamily:"inherit",lineHeight:1.6,resize:"none",boxSizing:"border-box",marginBottom:12}}/>{feedbackSent?<div style={{textAlign:"center",padding:12,color:"#4ADE80",fontWeight:700,fontSize:14}}>{t.sent}</div>:<Btn th={th} onClick={()=>{if(feedbackText.trim()){setFeedbackSent(true);setFeedbackText("");setTimeout(()=>setFeedbackSent(false),2500);}}} color={feedbackType==="bug"?"#F87171":accent} full disabled={!feedbackText.trim()}>{t.send}</Btn>}</Card></>}
+    {tab==="feedback"&&<><div style={{fontSize:13,color:th.text2,marginBottom:14}}>Un bug ou une idée ?</div><Card th={th}><SLabel th={th}>Type</SLabel><div style={{display:"flex",gap:8,marginBottom:14}}><Pill active={feedbackType==="bug"} color="#F87171" th={th} onClick={()=>setFeedbackType("bug")}>{t.bugType}</Pill><Pill active={feedbackType==="idea"} color={accent} th={th} onClick={()=>setFeedbackType("idea")}>{t.ideaType}</Pill></div><SLabel th={th}>Description</SLabel><textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)} rows={4} placeholder={feedbackType==="bug"?t.bugPlaceholder:t.ideaPlaceholder} style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:12,padding:"10px 14px",color:th.text,fontSize:13,fontFamily:"inherit",lineHeight:1.6,resize:"none",boxSizing:"border-box",marginBottom:12}}/>{feedbackSent?<div style={{textAlign:"center",padding:12,color:"#4ADE80",fontWeight:700,fontSize:14}}>{t.sent}</div>:<Btn th={th} onClick={sendFeedback} color={feedbackType==="bug"?"#F87171":accent} full disabled={!feedbackText.trim()}>{t.send}</Btn>}</Card></>}
     {showMoodModal&&<MoodModal moods={moods} setMoods={setMoods} lang={lang} accent={accent} th={th} onClose={()=>setShowMoodModal(false)}/>}
   </div>);
 }
 
-function Admin({onBack,roadmap,setRoadmap,th,accent,lang}){
+function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
   const t=I18N[lang]||I18N.fr;
   const [tab,setTab]=useState("stats");
   const [comment,setComment]=useState({});
   const [editRoad,setEditRoad]=useState(null);
+  const [adminUsers,setAdminUsers]=useState([]);
+  const [adminFeedbacks,setAdminFeedbacks]=useState([]);
+  const [adminStats,setAdminStats]=useState({total:0,premium:0});
+  const [adminLoading,setAdminLoading]=useState(true);
   const STATUS_OPTS=[["building","🔨 En dev"],["soon","📋 Prévu"],["later","💡 Réflexion"],["done","✅ Dispo"]];
+
+  useEffect(()=>{
+    if(!userId) return;
+    (async()=>{
+      setAdminLoading(true);
+      try{
+        const usersSnap=await getDocs(collection(db,"users"));
+        const users=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
+        const premium=users.filter(u=>u.role==="paid"||u.role==="admin").length;
+        setAdminStats({total:users.length,premium});
+        setAdminUsers([...users].sort((a,b)=>(b.createdAt?.toMillis?.()??0)-(a.createdAt?.toMillis?.()??0)).slice(0,10));
+        const fbQ=query(collection(db,"feedbacks"),orderBy("createdAt","desc"));
+        const fbSnap=await getDocs(fbQ);
+        setAdminFeedbacks(fbSnap.docs.map(d=>({id:d.id,...d.data()})));
+      }catch(e){console.error("Admin load error:",e);}
+      finally{setAdminLoading(false);}
+    })();
+  },[userId]);
+
+  const updateFbStatus=async(fbId,status)=>{
+    try{
+      await updateDoc(doc(db,"feedbacks",fbId),{status});
+      setAdminFeedbacks(fbs=>fbs.map(f=>f.id===fbId?{...f,status}:f));
+    }catch(e){console.error(e);}
+  };
+
   return(<div>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18}}>
       <button onClick={onBack} style={{background:th.bg3,border:`1px solid ${th.border}`,borderRadius:10,padding:"7px 14px",color:th.text,cursor:"pointer"}}>←</button>
@@ -920,17 +1002,49 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang}){
       ))}
     </div>
     {tab==="stats"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-      {[["👥","1 247","#7C9EFF",t.plan],["⚡","312","#4ADE80","Actifs"],["💰","€2 187","#FBBF24","MRR"],["✦","732","#A78BFA","Premium"]].map(([i,v,c,l])=>(<Card key={l} th={th} style={{border:`1px solid ${c}22`,textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:c,marginBottom:2}}>{v}</div><div style={{fontSize:10,color:th.text3}}>{i} {l}</div></Card>))}
-      <Card th={th} style={{gridColumn:"1/-1"}}><div style={{fontSize:11,color:th.text3,marginBottom:4}}>💳 {t.revenuecat}</div><div style={{fontSize:13,color:th.text2}}>Les modifications de prix ne s'appliquent qu'aux nouveaux abonnés.</div></Card>
+      {adminLoading?<Card th={th} style={{gridColumn:"1/-1",textAlign:"center"}}><div style={{color:th.text3,fontSize:13}}>Chargement…</div></Card>:<>
+        <Card th={th} style={{border:"1px solid #7C9EFF22",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#7C9EFF",marginBottom:2}}>{adminStats.total}</div><div style={{fontSize:10,color:th.text3}}>👥 {t.plan}</div></Card>
+        <Card th={th} style={{border:"1px solid #A78BFA22",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#A78BFA",marginBottom:2}}>{adminStats.premium}</div><div style={{fontSize:10,color:th.text3}}>✦ Premium</div></Card>
+        <Card th={th} style={{gridColumn:"1/-1"}}><div style={{fontSize:11,color:th.text3,marginBottom:4}}>💳 {t.revenuecat}</div><div style={{fontSize:13,color:th.text2}}>Les modifications de prix ne s'appliquent qu'aux nouveaux abonnés.</div></Card>
+      </>}
     </div>}
-    {tab==="users"&&<Card th={th}><SLabel th={th}>Derniers inscrits</SLabel>{[["Marie D.","🇫🇷","F","Premium"],["Carlos M.","🇪🇸","H","Gratuit"],["Lena K.","🇩🇪","F","Premium"],["Ana S.","🇧🇷","F","Premium"],["Tom B.","🇬🇧","H","Gratuit"]].map(([n,f,g,p])=>(<div key={n} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${th.border}`}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:16}}>{f}</span><div><div style={{fontSize:12,color:th.text}}>{n}</div><div style={{fontSize:10,color:th.text3}}>{g}</div></div></div><span style={{fontSize:11,padding:"2px 9px",borderRadius:20,background:p==="Premium"?accent+"22":th.bg3,color:p==="Premium"?accent:th.text3,fontWeight:700}}>{p}</span></div>))}</Card>}
+    {tab==="users"&&<Card th={th}><SLabel th={th}>Derniers inscrits</SLabel>
+      {adminLoading?<div style={{color:th.text3,fontSize:13}}>Chargement…</div>:adminUsers.length===0?<div style={{color:th.text3,fontSize:13}}>Aucun utilisateur</div>:
+        adminUsers.map(u=>{const name=u.displayName||(u.email?.split("@")[0])||"Utilisateur";const isPrem=u.role==="paid"||u.role==="admin";return(
+          <div key={u.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${th.border}`}}>
+            <div style={{fontSize:12,color:th.text}}>{name}</div>
+            <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,background:isPrem?accent+"22":th.bg3,color:isPrem?accent:th.text3,fontWeight:700}}>{isPrem?"Premium":"Gratuit"}</span>
+          </div>);})
+      }
+    </Card>}
     {tab==="roadmap"&&<>{roadmap.map(r=>(<Card key={r.id} th={th} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div><div style={{fontWeight:700,fontSize:13,color:th.text}}>{r.title}</div><div style={{fontSize:10,color:th.text3}}>{r.votes} vote{r.votes!==1?"s":""}</div></div><button onClick={()=>setEditRoad(editRoad===r.id?null:r.id)} style={{background:"none",border:"none",color:accent,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>{editRoad===r.id?"✕":"Modifier"}</button></div>{editRoad===r.id&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>{STATUS_OPTS.map(([v,l])=><Pill key={v} active={r.status===v} color={accent} th={th} onClick={()=>setRoadmap(rm=>rm.map(x=>x.id===r.id?{...x,status:v}:x))} small>{l}</Pill>)}</div>}</Card>))}</>}
-    {tab==="feedbacks"&&<>{[{id:1,type:"bug",text:"L'app plante quand je change de langue",user:"Marie D.",status:"open",flag:"🇫🇷"},{id:2,type:"idea",text:"Export des données en PDF",user:"Carlos M.",status:"done",flag:"🇪🇸"},{id:3,type:"bug",text:"Heatmap annuelle bugue parfois",user:"Tom B.",status:"progress",flag:"🇬🇧"}].map(fb=>(<Card key={fb.id} th={th} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}><div style={{display:"flex",gap:8,alignItems:"center"}}><span>{fb.flag}</span><span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:700,background:fb.type==="bug"?"rgba(248,113,113,0.12)":"rgba(124,158,255,0.12)",color:fb.type==="bug"?"#F87171":"#7C9EFF"}}>{fb.type==="bug"?"🐛 Bug":"💡"}</span><span style={{fontSize:11,color:th.text3}}>{fb.user}</span></div><span style={{fontSize:10,padding:"2px 8px",borderRadius:20,fontWeight:700,background:fb.status==="done"?"#4ADE8022":fb.status==="progress"?"#FBBF2422":th.bg3,color:fb.status==="done"?"#4ADE80":fb.status==="progress"?"#FBBF24":th.text3}}>{fb.status==="done"?"✓":fb.status==="progress"?"⚡":"●"}</span></div><div style={{fontSize:13,color:th.text,marginBottom:10}}>{fb.text}</div><div style={{display:"flex",gap:8}}><input placeholder="Commenter…" value={comment[fb.id]||""} onChange={e=>setComment({...comment,[fb.id]:e.target.value})} style={{flex:1,background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit"}}/><button style={{padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}}>→</button></div></Card>))}</>}
+    {tab==="feedbacks"&&<>
+      {adminLoading?<Card th={th}><div style={{color:th.text3,fontSize:13}}>Chargement…</div></Card>:adminFeedbacks.length===0?<Card th={th}><div style={{color:th.text3,fontSize:13}}>Aucun feedback</div></Card>:
+        adminFeedbacks.map(fb=>(<Card key={fb.id} th={th} style={{marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {fb.userFlag&&<span>{fb.userFlag}</span>}
+              <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:700,background:fb.type==="bug"?"rgba(248,113,113,0.12)":"rgba(124,158,255,0.12)",color:fb.type==="bug"?"#F87171":"#7C9EFF"}}>{fb.type==="bug"?"🐛 Bug":"💡"}</span>
+              <span style={{fontSize:11,color:th.text3}}>{fb.userName||fb.user||""}</span>
+            </div>
+            <div style={{display:"flex",gap:4,alignItems:"center"}}>
+              {["open","progress","done"].map(s=><button key={s} onClick={()=>updateFbStatus(fb.id,s)} style={{fontSize:10,padding:"2px 7px",borderRadius:20,fontWeight:700,cursor:"pointer",border:"none",background:fb.status===s?(s==="done"?"#4ADE8022":s==="progress"?"#FBBF2422":"rgba(100,100,100,0.2)"):th.bg3,color:fb.status===s?(s==="done"?"#4ADE80":s==="progress"?"#FBBF24":th.text):th.text3}}>{s==="done"?"✓":s==="progress"?"⚡":"●"}</button>)}
+            </div>
+          </div>
+          <div style={{fontSize:13,color:th.text,marginBottom:10}}>{fb.text}</div>
+          <div style={{display:"flex",gap:8}}>
+            <input placeholder="Commenter…" value={comment[fb.id]||""} onChange={e=>setComment({...comment,[fb.id]:e.target.value})} style={{flex:1,background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit"}}/>
+            <button style={{padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}}>→</button>
+          </div>
+        </Card>))
+      }
+    </>}
   </div>);
 }
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function App({
+  userId = "",
   userEmail = "",
   displayName = "",
   role = "free",
@@ -952,7 +1066,38 @@ export default function App({
   const [widgets, setWidgets] = useState(["objectives","weekMoods","streaks","aiInsight"]);
   const [notif, setNotif] = useState(true);
   const [notifTime, setNotifTime] = useState("21:00");
-  const [data, setData] = useState(()=>{const d={};for(let m=0;m<=CUR_M;m++)d[m]=seedMonth(m,CUR_Y);return d;});
+  const dataLoadedRef = useRef(false);
+  const [data, setDataRaw] = useState({});
+  const setData = useCallback((updater) => {
+    setDataRaw(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (userId && dataLoadedRef.current) {
+        Object.keys(next).forEach(m => {
+          if (next[m] !== prev[m]) {
+            setDoc(doc(db, "users", userId, "days", `${CUR_Y}_${m}`), next[m] || {}).catch(console.error);
+          }
+        });
+      }
+      return next;
+    });
+  }, [userId]);
+  useEffect(() => {
+    if (!userId) { dataLoadedRef.current = true; return; }
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "users", userId, "days"));
+        const loaded = {};
+        snap.forEach(docSnap => {
+          const parts = docSnap.id.split("_");
+          if (parts.length === 2 && parseInt(parts[0]) === CUR_Y) {
+            loaded[parseInt(parts[1])] = docSnap.data();
+          }
+        });
+        setDataRaw(loaded);
+      } catch(e) { console.error("Error loading days:", e); }
+      finally { dataLoadedRef.current = true; }
+    })();
+  }, [userId]);
   const [trackers, setTrackers] = useState([TRACKER_CATALOGUE[0],TRACKER_CATALOGUE[1],TRACKER_CATALOGUE[2]]);
   const [objectives, setObjectives] = useState([]);
   const [roadmap, setRoadmap] = useState(INIT_ROADMAP);
@@ -1002,7 +1147,7 @@ export default function App({
   if(screen === "admin") return (
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'Nunito',-apple-system,sans-serif",display:"flex",justifyContent:"center",padding:"20px 16px 30px"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');*{box-sizing:border-box;}button:active{transform:scale(0.96);}`}</style>
-      <div style={{width:"100%",maxWidth:440}}><Admin th={th} accent={accent} lang={userInfo.lang} onBack={()=>setScreen("app")} roadmap={roadmap} setRoadmap={setRoadmap}/></div>
+      <div style={{width:"100%",maxWidth:440}}><Admin th={th} accent={accent} lang={userInfo.lang} onBack={()=>setScreen("app")} roadmap={roadmap} setRoadmap={setRoadmap} userId={userId}/></div>
     </div>
   );
 
@@ -1027,8 +1172,8 @@ export default function App({
           {page==="home"    && <Dashboard data={data} setData={setData} objectives={objectives} setObjectives={setObjectives} widgets={widgets} setWidgets={setWidgets} trackers={trackers} moods={moods} accent={accent} firstName={userInfo.firstName} plan={plan} th={th} lang={userInfo.lang} showAdPopup={showAdPopup}/>}
           {page==="entry"   && <Saisie data={data} setData={setData} trackers={trackers} setTrackers={setTrackers} moods={moods} accent={accent} th={th} lang={userInfo.lang} showAdPopup={showAdPopup}/>}
           {page==="track"   && <Suivi data={data} setData={setData} trackers={trackers} moods={moods} accent={accent} th={th} lang={userInfo.lang}/>}
-          {page==="journal" && <Decharge accent={accent} th={th} lang={userInfo.lang}/>}
-          {page==="settings"&& <Parametres accent={accent} setAccent={setAccent} lang={userInfo.lang} setLang={setLang} gender={userInfo.gender} setGender={g=>setUserInfo(u=>({...u,gender:g}))} themeName={themeName} setThemeName={setThemeName} notif={notif} setNotif={setNotif} notifTime={notifTime} setNotifTime={setNotifTime} roadmap={roadmap} onVote={handleVote} votedIds={votedIds} moods={moods} setMoods={setMoods} th={th} onLogout={onLogout}/>}
+          {page==="journal" && <Decharge accent={accent} th={th} lang={userInfo.lang} userId={userId}/>}
+          {page==="settings"&& <Parametres accent={accent} setAccent={setAccent} lang={userInfo.lang} setLang={setLang} gender={userInfo.gender} setGender={g=>setUserInfo(u=>({...u,gender:g}))} themeName={themeName} setThemeName={setThemeName} notif={notif} setNotif={setNotif} notifTime={notifTime} setNotifTime={setNotifTime} roadmap={roadmap} onVote={handleVote} votedIds={votedIds} moods={moods} setMoods={setMoods} th={th} onLogout={onLogout} userId={userId} displayName={displayName} userEmail={userEmail}/>}
         </div>
       </div>
       <nav style={{position:"fixed",bottom:0,left:0,right:0,background:th.navBg,backdropFilter:"blur(20px)",borderTop:`1px solid ${th.border}`,display:"flex",justifyContent:"center",padding:"8px 0 18px"}}>

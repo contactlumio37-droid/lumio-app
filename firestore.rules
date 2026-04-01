@@ -1,9 +1,43 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Chaque utilisateur peut lire et écrire uniquement son propre profil
+
+    // Chaque utilisateur peut lire/écrire son propre profil
+    // L'admin peut lire tous les profils
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null
+                  && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+
+      // Données journalières de suivi (une doc par mois YYYY_M)
+      match /days/{monthDoc} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Entrées de décharge / journal
+      match /journal/{entryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Préférences : trackers, humeurs, thème, langue…
+      match /settings/{settingDoc} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Feedbacks soumis par les utilisateurs
+    match /feedbacks/{feedbackId} {
+      // N'importe quel utilisateur connecté peut créer un feedback qui lui appartient
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+
+      // L'auteur peut lire son propre feedback
+      allow read: if request.auth != null
+                  && request.auth.uid == resource.data.userId;
+
+      // L'admin peut lire et mettre à jour tous les feedbacks
+      allow read, update: if request.auth != null
+                          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
     // Bloquer tout le reste par défaut
