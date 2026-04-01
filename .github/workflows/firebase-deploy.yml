@@ -1,6 +1,9 @@
 name: Deploy to Firebase Hosting
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       environment:
@@ -45,14 +48,19 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
+      # ── AUTO-DEPLOY ON PUSH TO MAIN → PRODUCTION ─────────────────────────
+      - name: Deploy to Production (auto on push)
+        if: ${{ github.event_name == 'push' }}
+        run: npx firebase deploy --only hosting --project lumio-8ed03
+
       # ── STAGING ──────────────────────────────────────────────────────────
       # URL fixe : https://lumio-8ed03--staging.web.app
       - name: Deploy to Staging
-        if: ${{ github.event.inputs.environment == 'staging' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging' }}
         run: npx firebase hosting:channel:deploy staging --project lumio-8ed03 --expires 30d
 
       # ── PRODUCTION ───────────────────────────────────────────────────────
       # URL live : https://lumio-8ed03.web.app
       - name: Deploy to Production
-        if: ${{ github.event.inputs.environment == 'production' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' }}
         run: npx firebase deploy --only hosting --project lumio-8ed03
