@@ -58,6 +58,8 @@ const I18N = {
     objectiveReached:"Objectif atteint",
     remaining:"restants",
     current:"actuel",
+    firstName:"Prénom",
+    profileSection:"👤 Profil",
   },
   en: {
     months: ["January","February","March","April","May","June","July","August","September","October","November","December"],
@@ -112,6 +114,8 @@ const I18N = {
     objectiveReached:"Goal reached",
     remaining:"remaining",
     current:"current",
+    firstName:"First name",
+    profileSection:"👤 Profile",
   },
   es: {
     months: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
@@ -166,6 +170,8 @@ const I18N = {
     objectiveReached:"Objetivo alcanzado",
     remaining:"restantes",
     current:"actual",
+    firstName:"Nombre",
+    profileSection:"👤 Perfil",
   },
   de: {
     months: ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
@@ -220,6 +226,8 @@ const I18N = {
     objectiveReached:"Ziel erreicht",
     remaining:"übrig",
     current:"aktuell",
+    firstName:"Vorname",
+    profileSection:"👤 Profil",
   },
   it: {
     months: ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"],
@@ -274,6 +282,8 @@ const I18N = {
     objectiveReached:"Obiettivo raggiunto",
     remaining:"rimanenti",
     current:"attuale",
+    firstName:"Nome",
+    profileSection:"👤 Profilo",
   },
   pt: {
     months: ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"],
@@ -328,6 +338,8 @@ const I18N = {
     objectiveReached:"Objetivo alcançado",
     remaining:"restantes",
     current:"atual",
+    firstName:"Nome",
+    profileSection:"👤 Perfil",
   },
 };
 
@@ -1266,9 +1278,12 @@ function Parametres({
   setReminderTime,
   moods,
   setMoods,
+  firstName,
+  setFirstName,
   roadmap,
   feedbackItems,
   setFeedbackItems,
+  userId,
   plan,
   th,
   onLogout,
@@ -1287,23 +1302,34 @@ function Parametres({
     ["na", t.noG],
   ];
 
-  const submitFeedback = () => {
+  const submitFeedback = async () => {
     const text = feedbackText.trim();
     if (!text) return;
 
-    setFeedbackItems((prev) => [
-      {
-        id: Date.now(),
-        type: feedbackType,
-        text,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    const item = {
+      id: Date.now(),
+      type: feedbackType,
+      text,
+      createdAt: new Date().toISOString(),
+    };
 
+    setFeedbackItems((prev) => [item, ...prev]);
     setFeedbackText("");
     setSent(true);
     setTimeout(() => setSent(false), 2500);
+
+    if (userId) {
+      try {
+        await addDoc(collection(db, "feedbacks"), {
+          userId,
+          type: feedbackType,
+          text,
+          createdAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("Feedback save error:", err);
+      }
+    }
   };
 
   return (
@@ -1311,6 +1337,19 @@ function Parametres({
       <div style={{ fontWeight: 800, fontSize: 17, color: th.text, marginBottom: 14 }}>
         {t.settings}
       </div>
+
+      <Card th={th} style={{ marginBottom: 12 }}>
+        <SLabel th={th}>{t.profileSection || "👤 Profil"}</SLabel>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 8 }}>{t.firstName}</div>
+          <TInput
+            th={th}
+            value={firstName}
+            onChange={setFirstName}
+            placeholder={t.firstName}
+          />
+        </div>
+      </Card>
 
       <Card th={th} style={{ marginBottom: 12 }}>
         <SLabel th={th}>{t.general}</SLabel>
@@ -1572,7 +1611,104 @@ function Admin({ th }) {
   );
 }
 
-function LumioApp() {
+// ─── ROADMAP MODAL ────────────────────────────────────────────────────────────
+function RoadmapModal({ roadmap, accent, th, lang, onClose }) {
+  const t = I18N[lang] || I18N.fr;
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: th.bg, borderRadius: "20px 20px 0 0", maxHeight: "85vh", overflowY: "auto", border: `1px solid ${th.border2}` }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: th.border2 }} />
+        </div>
+        <div style={{ padding: "0 16px 28px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 17, color: th.text }}>🗺 {t.roadmap}</div>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: th.text3, cursor: "pointer", fontSize: 22 }}>×</button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {roadmap.map(item => (
+              <div key={item.id} style={{ background: th.bg2, border: `1px solid ${th.border}`, borderRadius: 14, padding: 14 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: th.text, marginBottom: 4 }}>{item.title}</div>
+                <div style={{ fontSize: 12, color: th.text2, marginBottom: 8 }}>{item.desc}</div>
+                <div style={{ fontSize: 11, color: accent, fontWeight: 700 }}>
+                  {item.status} · {item.votes} vote{item.votes !== 1 ? "s" : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── FEEDBACK MODAL ───────────────────────────────────────────────────────────
+function FeedbackModal({ feedbackItems, setFeedbackItems, userId, accent, th, lang, onClose }) {
+  const t = I18N[lang] || I18N.fr;
+  const [feedbackType, setFeedbackType] = useState("idea");
+  const [feedbackText, setFeedbackText] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const submit = async () => {
+    const text = feedbackText.trim();
+    if (!text) return;
+    const item = { id: Date.now(), type: feedbackType, text, createdAt: new Date().toISOString() };
+    setFeedbackItems(prev => [item, ...prev]);
+    setFeedbackText("");
+    setSent(true);
+    setTimeout(() => setSent(false), 2500);
+    if (userId) {
+      try {
+        await addDoc(collection(db, "feedbacks"), { userId, type: feedbackType, text, createdAt: serverTimestamp() });
+      } catch (err) {
+        console.error("Feedback save error:", err);
+      }
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: th.bg, borderRadius: "20px 20px 0 0", maxHeight: "85vh", overflowY: "auto", border: `1px solid ${th.border2}` }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: th.border2 }} />
+        </div>
+        <div style={{ padding: "0 16px 28px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 17, color: th.text }}>💬 {t.feedback}</div>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: th.text3, cursor: "pointer", fontSize: 22 }}>×</button>
+          </div>
+          <div style={{ fontSize: 12, color: th.text3, marginBottom: 12 }}>{t.voteHint}</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <Pill active={feedbackType === "bug"} color="#F87171" th={th} onClick={() => setFeedbackType("bug")}>{t.bugType}</Pill>
+            <Pill active={feedbackType === "idea"} color={accent} th={th} onClick={() => setFeedbackType("idea")}>{t.ideaType}</Pill>
+          </div>
+          <textarea
+            value={feedbackText}
+            onChange={e => setFeedbackText(e.target.value)}
+            placeholder={feedbackType === "bug" ? t.bugPlaceholder : t.ideaPlaceholder}
+            rows={4}
+            style={{ width: "100%", background: th.inputBg, border: `1px solid ${th.border2}`, borderRadius: 12, padding: "10px 14px", color: th.text, fontSize: 13, fontFamily: "inherit", resize: "none", boxSizing: "border-box", marginBottom: 12 }}
+          />
+          <Btn th={th} color={accent} onClick={submit} full>{sent ? t.sent : t.send}</Btn>
+          {feedbackItems.length > 0 && (
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+              {feedbackItems.slice(0, 5).map(item => (
+                <div key={item.id} style={{ background: th.bg2, border: `1px solid ${th.border}`, borderRadius: 10, padding: 10 }}>
+                  <div style={{ fontSize: 11, color: item.type === "bug" ? "#F87171" : accent, fontWeight: 800, marginBottom: 4 }}>
+                    {item.type === "bug" ? t.bugType : t.ideaType}
+                  </div>
+                  <div style={{ fontSize: 12, color: th.text2 }}>{item.text}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
   const [tab, setTab] = useState("home");
   const [lang, setLang] = useState("fr");
   const [theme, setTheme] = useState("dark");
@@ -1580,8 +1716,15 @@ function LumioApp() {
   const [gender, setGender] = useState("na");
   const [notifications, setNotifications] = useState(true);
   const [reminderTime, setReminderTime] = useState("20:00");
-  const [firstName] = useState("Yann");
-  const [plan, setPlan] = useState("free");
+  const [firstName, setFirstName] = useState(displayName || "");
+  const plan = (role === "paid" || role === "admin") ? "premium" : "free";
+
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showRoadmapModal, setShowRoadmapModal] = useState(false);
+
+  // Firestore sync: ref tracks whether initial load is done (prevents saving before loading)
+  const fsLoaded = useRef(false);
+  const saveTimer = useRef(null);
 
   const [moods, setMoods] = useState(
     DEFAULT_MOODS.map((m) => ({
@@ -1598,7 +1741,7 @@ function LumioApp() {
   ]);
 
   const [data, setData] = useState(() => ({
-    [CUR_M]: seedMonth(CUR_M, CUR_Y),
+    [CUR_M]: {},
   }));
 
   const [objectives, setObjectives] = useState([]);
@@ -1626,6 +1769,80 @@ function LumioApp() {
     }
   }, [plan]);
 
+  // ── Firestore: load all user data on mount ──────────────────────────────────
+  useEffect(() => {
+    if (!userId) { fsLoaded.current = true; return; }
+    const load = async () => {
+      try {
+        const [prefsSnap, objSnap, journalSnap, daysSnap] = await Promise.all([
+          getDoc(doc(db, "users", userId, "settings", "prefs")),
+          getDoc(doc(db, "users", userId, "settings", "objectives")),
+          getDoc(doc(db, "users", userId, "settings", "journal")),
+          getDoc(doc(db, "users", userId, "settings", "days")),
+        ]);
+        if (prefsSnap.exists()) {
+          const p = prefsSnap.data();
+          if (p.lang) setLang(p.lang);
+          if (p.theme) setTheme(p.theme);
+          if (p.accent) setAccent(p.accent);
+          if (p.gender) setGender(p.gender);
+          if (typeof p.notifications === "boolean") setNotifications(p.notifications);
+          if (p.reminderTime) setReminderTime(p.reminderTime);
+          if (p.firstName) setFirstName(p.firstName);
+          if (Array.isArray(p.moods) && p.moods.length) setMoods(p.moods);
+          if (Array.isArray(p.trackers) && p.trackers.length) setTrackers(p.trackers);
+          if (Array.isArray(p.widgets) && p.widgets.length) setWidgets(p.widgets);
+        }
+        if (objSnap.exists()) {
+          const items = objSnap.data().items;
+          if (Array.isArray(items)) setObjectives(items);
+        }
+        if (journalSnap.exists()) {
+          const entries = journalSnap.data().entries;
+          if (Array.isArray(entries)) setJournalEntries(entries);
+        }
+        if (daysSnap.exists()) {
+          const saved = daysSnap.data().data;
+          if (saved && typeof saved === "object") setData(saved);
+        }
+      } catch (err) {
+        console.error("Firestore load error:", err);
+      } finally {
+        fsLoaded.current = true;
+      }
+    };
+    load();
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Firestore: debounced save whenever any key state changes ────────────────
+  const stateSnap = useRef({});
+  stateSnap.current = { lang, theme, accent, gender, notifications, reminderTime, firstName, moods, trackers, widgets, objectives, journalEntries, data };
+
+  const scheduleSave = useCallback(() => {
+    if (!userId || !fsLoaded.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const s = stateSnap.current;
+      try {
+        await Promise.all([
+          setDoc(doc(db, "users", userId, "settings", "prefs"), {
+            lang: s.lang, theme: s.theme, accent: s.accent, gender: s.gender,
+            notifications: s.notifications, reminderTime: s.reminderTime,
+            firstName: s.firstName, moods: s.moods, trackers: s.trackers, widgets: s.widgets,
+          }),
+          setDoc(doc(db, "users", userId, "settings", "objectives"), { items: s.objectives }),
+          setDoc(doc(db, "users", userId, "settings", "journal"), { entries: s.journalEntries }),
+          setDoc(doc(db, "users", userId, "settings", "days"), { data: s.data }),
+        ]);
+      } catch (err) {
+        console.error("Firestore save error:", err);
+      }
+    }, 1500);
+  }, [userId]);
+
+  useEffect(() => { scheduleSave(); },
+    [lang, theme, accent, gender, notifications, reminderTime, firstName, moods, trackers, widgets, objectives, journalEntries, data, scheduleSave]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const rootStyle = {
     minHeight: "100vh",
     background: th.bg,
@@ -1652,22 +1869,46 @@ function LumioApp() {
     <div style={rootStyle}>
       <div style={pageWrapStyle}>
         {tab === "home" && (
-          <Dashboard
-            data={data}
-            setData={setData}
-            objectives={objectives}
-            setObjectives={setObjectives}
-            widgets={widgets}
-            setWidgets={setWidgets}
-            trackers={trackers}
-            moods={moods}
-            accent={accent}
-            firstName={firstName}
-            plan={plan}
-            th={th}
-            lang={lang}
-            showAdPopup={showAdPopup}
-          />
+          <>
+            <Dashboard
+              data={data}
+              setData={setData}
+              objectives={objectives}
+              setObjectives={setObjectives}
+              widgets={widgets}
+              setWidgets={setWidgets}
+              trackers={trackers}
+              moods={moods}
+              accent={accent}
+              firstName={firstName}
+              plan={plan}
+              th={th}
+              lang={lang}
+              showAdPopup={showAdPopup}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button
+                onClick={() => setShowRoadmapModal(true)}
+                style={{
+                  flex: 1, padding: "10px 0", borderRadius: 12, border: `1px solid ${th.border2}`,
+                  background: th.bg2, color: th.text2, cursor: "pointer", fontFamily: "inherit",
+                  fontWeight: 700, fontSize: 13,
+                }}
+              >
+                🗺 {(I18N[lang] || I18N.fr).roadmap}
+              </button>
+              <button
+                onClick={() => setShowFeedbackModal(true)}
+                style={{
+                  flex: 1, padding: "10px 0", borderRadius: 12, border: `1px solid ${th.border2}`,
+                  background: th.bg2, color: th.text2, cursor: "pointer", fontFamily: "inherit",
+                  fontWeight: 700, fontSize: 13,
+                }}
+              >
+                💬 {(I18N[lang] || I18N.fr).feedback}
+              </button>
+            </div>
+          </>
         )}
 
         {tab === "entry" && (
@@ -1723,9 +1964,12 @@ function LumioApp() {
             setReminderTime={setReminderTime}
             moods={moods}
             setMoods={setMoods}
+            firstName={firstName}
+            setFirstName={setFirstName}
             roadmap={roadmap}
             feedbackItems={feedbackItems}
             setFeedbackItems={setFeedbackItems}
+            userId={userId}
             plan={plan}
             th={th}
             onLogout={onLogout}
@@ -1786,13 +2030,32 @@ function LumioApp() {
       {showAd && (
         <AdPopup
           onClose={() => setShowAd(false)}
-          onUpgrade={() => {
-            setPlan("premium");
-            setShowAd(false);
-          }}
+          onUpgrade={() => setShowAd(false)}
           accent={accent}
           th={th}
           t={t}
+        />
+      )}
+
+      {showRoadmapModal && (
+        <RoadmapModal
+          roadmap={roadmap}
+          accent={accent}
+          th={th}
+          lang={lang}
+          onClose={() => setShowRoadmapModal(false)}
+        />
+      )}
+
+      {showFeedbackModal && (
+        <FeedbackModal
+          feedbackItems={feedbackItems}
+          setFeedbackItems={setFeedbackItems}
+          userId={userId}
+          accent={accent}
+          th={th}
+          lang={lang}
+          onClose={() => setShowFeedbackModal(false)}
         />
       )}
     </div>
