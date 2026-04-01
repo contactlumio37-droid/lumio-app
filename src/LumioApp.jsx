@@ -911,16 +911,12 @@ function Parametres({accent,setAccent,lang,setLang,gender,setGender,themeName,se
   },[userId]);
   const sendFeedback=async()=>{
     if(!feedbackText.trim())return;
+    const fbData={type:feedbackType,text:feedbackText.trim(),userId,userName:displayName||userEmail?.split("@")[0]||"Utilisateur",userFlag:LANG_FLAGS_MAP[lang]||"🌍",status:"open",createdAt:serverTimestamp()};
     if(userId){
-      addDoc(collection(db,"feedbacks"),{
-        type:feedbackType,
-        text:feedbackText.trim(),
-        userId,
-        userName:displayName||userEmail?.split("@")[0]||"Utilisateur",
-        userFlag:LANG_FLAGS_MAP[lang]||"🌍",
-        status:"open",
-        createdAt:serverTimestamp()
-      }).catch(console.error);
+      try{
+        const docRef=await addDoc(collection(db,"feedbacks"),fbData);
+        setMyFeedbacks(fbs=>[{...fbData,id:docRef.id,createdAt:new Date()},...fbs]);
+      }catch(e){console.error(e);}
     }
     setFeedbackSent(true);
     setFeedbackText("");
@@ -995,6 +991,7 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
   const [showAddForm,setShowAddForm]=useState(false);
   const [newItemTitle,setNewItemTitle]=useState("");
   const [newItemDesc,setNewItemDesc]=useState("");
+  const [newItemStatus,setNewItemStatus]=useState("soon");
   const [adminUsers,setAdminUsers]=useState([]);
   const [adminFeedbacks,setAdminFeedbacks]=useState([]);
   const [adminStats,setAdminStats]=useState({total:0,premium:0});
@@ -1039,9 +1036,9 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
   const addRoadmapItem=async()=>{
     if(!newItemTitle.trim())return;
     try{
-      const docRef=await addDoc(collection(db,"roadmap"),{title:newItemTitle.trim(),desc:newItemDesc.trim(),status:"soon",votes:0,createdAt:serverTimestamp()});
-      setRoadmap(r=>[...r,{id:docRef.id,title:newItemTitle.trim(),desc:newItemDesc.trim(),status:"soon",votes:0}]);
-      setNewItemTitle("");setNewItemDesc("");setShowAddForm(false);
+      const docRef=await addDoc(collection(db,"roadmap"),{title:newItemTitle.trim(),desc:newItemDesc.trim(),status:newItemStatus,votes:0,createdAt:serverTimestamp()});
+      setRoadmap(r=>[...r,{id:docRef.id,title:newItemTitle.trim(),desc:newItemDesc.trim(),status:newItemStatus,votes:0}]);
+      setNewItemTitle("");setNewItemDesc("");setNewItemStatus("soon");setShowAddForm(false);
     }catch(e){console.error(e);}
   };
 
@@ -1050,22 +1047,19 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
     const updates={};
     if(title!==undefined)updates.title=title;
     if(desc!==undefined)updates.desc=desc;
-    if(!Object.keys(updates).length){setEditRoad(null);return;}
-    try{
-      await updateDoc(doc(db,"roadmap",String(id)),updates);
-      setRoadmap(r=>r.map(x=>x.id===id?{...x,...updates}:x));
-      setEditTitle(t=>{const n={...t};delete n[id];return n;});
-      setEditDesc(d=>{const n={...d};delete n[id];return n;});
-      setEditRoad(null);
-    }catch(e){console.error(e);}
+    setRoadmap(r=>r.map(x=>x.id===id?{...x,...updates}:x));
+    setEditTitle(t=>{const n={...t};delete n[id];return n;});
+    setEditDesc(d=>{const n={...d};delete n[id];return n;});
+    setEditRoad(null);
+    if(Object.keys(updates).length){
+      setDoc(doc(db,"roadmap",String(id)),updates,{merge:true}).catch(console.error);
+    }
   };
 
   const deleteRoadmapItem=async(id)=>{
-    try{
-      await deleteDoc(doc(db,"roadmap",String(id)));
-      setRoadmap(r=>r.filter(x=>x.id!==id));
-      setEditRoad(null);
-    }catch(e){console.error(e);}
+    setRoadmap(r=>r.filter(x=>x.id!==id));
+    setEditRoad(null);
+    deleteDoc(doc(db,"roadmap",String(id))).catch(console.error);
   };
 
   return(<div>
@@ -1105,7 +1099,7 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
           <input value={editTitle[r.id]??r.title} onChange={e=>setEditTitle(t=>({...t,[r.id]:e.target.value}))} placeholder="Titre" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:6,boxSizing:"border-box"}}/>
           <input value={editDesc[r.id]??r.desc??""} onChange={e=>setEditDesc(d=>({...d,[r.id]:e.target.value}))} placeholder="Description" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box"}}/>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-            {STATUS_OPTS.map(([v,l])=><Pill key={v} active={r.status===v} color={accent} th={th} onClick={async()=>{await updateDoc(doc(db,"roadmap",String(r.id)),{status:v}).catch(console.error);setRoadmap(rm=>rm.map(x=>x.id===r.id?{...x,status:v}:x));}} small>{l}</Pill>)}
+            {STATUS_OPTS.map(([v,l])=><Pill key={v} active={r.status===v} color={accent} th={th} onClick={()=>{setDoc(doc(db,"roadmap",String(r.id)),{status:v},{merge:true}).catch(console.error);setRoadmap(rm=>rm.map(x=>x.id===r.id?{...x,status:v}:x));}} small>{l}</Pill>)}
           </div>
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>saveRoadmapItem(r.id)} style={{flex:1,padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✓ Enregistrer</button>
@@ -1118,6 +1112,9 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
           <div style={{fontWeight:700,fontSize:12,color:th.text,marginBottom:8}}>Nouvel élément</div>
           <input value={newItemTitle} onChange={e=>setNewItemTitle(e.target.value)} placeholder="Titre *" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:6,boxSizing:"border-box"}}/>
           <input value={newItemDesc} onChange={e=>setNewItemDesc(e.target.value)} placeholder="Description" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box"}}/>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+            {STATUS_OPTS.map(([v,l])=><Pill key={v} active={newItemStatus===v} color={accent} th={th} onClick={()=>setNewItemStatus(v)} small>{l}</Pill>)}
+          </div>
           <div style={{display:"flex",gap:8}}>
             <button onClick={addRoadmapItem} disabled={!newItemTitle.trim()} style={{flex:1,padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit",opacity:newItemTitle.trim()?1:0.5}}>+ Ajouter</button>
             <button onClick={()=>{setShowAddForm(false);setNewItemTitle("");setNewItemDesc("");}} style={{padding:"6px 12px",background:th.bg3,border:`1px solid ${th.border}`,borderRadius:9,color:th.text,fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✕</button>
@@ -1136,7 +1133,7 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
               <span style={{fontSize:11,color:th.text3}}>{fb.userName||fb.user||""}</span>
             </div>
             <div style={{display:"flex",gap:4,alignItems:"center"}}>
-              {["open","progress","done"].map(s=><button key={s} onClick={()=>updateFbStatus(fb.id,s)} style={{fontSize:10,padding:"2px 7px",borderRadius:20,fontWeight:700,cursor:"pointer",border:"none",background:fb.status===s?(s==="done"?"#4ADE8022":s==="progress"?"#FBBF2422":"rgba(100,100,100,0.2)"):th.bg3,color:fb.status===s?(s==="done"?"#4ADE80":s==="progress"?"#FBBF24":th.text):th.text3}}>{s==="done"?"✓":s==="progress"?"⚡":"●"}</button>)}
+              {["open","progress","done"].map(s=><button key={s} title={s==="done"?"Traité":s==="progress"?"En cours":"En attente"} onClick={()=>updateFbStatus(fb.id,s)} style={{fontSize:10,padding:"2px 7px",borderRadius:20,fontWeight:700,cursor:"pointer",border:"none",background:fb.status===s?(s==="done"?"#4ADE8022":s==="progress"?"#FBBF2422":"rgba(100,100,100,0.2)"):th.bg3,color:fb.status===s?(s==="done"?"#4ADE80":s==="progress"?"#FBBF24":th.text):th.text3}}>{s==="done"?"✓ Traité":s==="progress"?"⚡ En cours":"● Attente"}</button>)}
             </div>
           </div>
           <div style={{fontSize:13,color:th.text,marginBottom:10}}>{fb.text}</div>
@@ -1269,7 +1266,7 @@ export default function App({
     setRoadmap(r => {
       const newR = r.map(x => x.id === id ? {...x, votes: alreadyVoted ? Math.max(0, x.votes-1) : x.votes+1} : x);
       const item = newR.find(x => x.id === id);
-      if (item) updateDoc(doc(db, "roadmap", String(id)), {votes: item.votes}).catch(console.error);
+      if (item) setDoc(doc(db, "roadmap", String(id)), {votes: item.votes}, {merge:true}).catch(console.error);
       return newR;
     });
   };
