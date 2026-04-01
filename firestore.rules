@@ -31,13 +31,20 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid;
 
-      // L'auteur peut lire son propre feedback
+      // L'auteur peut lire ses propres feedbacks (y compris via query where userId == uid)
       allow read: if request.auth != null
                   && request.auth.uid == resource.data.userId;
 
       // L'admin peut lire et mettre à jour tous les feedbacks
       allow read, update: if request.auth != null
                           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // Roadmap publique en lecture, écriture réservée à l'admin
+    match /roadmap/{itemId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
     // Bloquer tout le reste par défaut
