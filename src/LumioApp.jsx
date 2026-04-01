@@ -1083,7 +1083,7 @@ function Suivi({data,setData,trackers,moods,accent,th,lang}){
   </div>);
 }
 
-/function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdPopup }) {
+function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdPopup }) {
   const t = I18N[lang] || I18N.fr;
   const [mode, setMode] = useState("journal");
   const [draft, setDraft] = useState("");
