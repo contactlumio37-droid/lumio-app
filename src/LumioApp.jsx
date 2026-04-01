@@ -1728,10 +1728,7 @@ function LumioApp() {
             setFeedbackItems={setFeedbackItems}
             plan={plan}
             th={th}
-            onLogout={() => {
-              setTab("home");
-              setPlan("free");
-            }}
+            onLogout={onLogout}
           />
         )}
       </div>
