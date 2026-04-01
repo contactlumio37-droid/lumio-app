@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { db } from "./firebase";
-import { doc, setDoc, collection, addDoc, getDocs, updateDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, collection, addDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp } from "firebase/firestore";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -901,7 +901,14 @@ function Parametres({accent,setAccent,lang,setLang,gender,setGender,themeName,se
   const [feedbackText,setFeedbackText]=useState("");
   const [feedbackSent,setFeedbackSent]=useState(false);
   const [showMoodModal,setShowMoodModal]=useState(false);
+  const [myFeedbacks,setMyFeedbacks]=useState([]);
   const LANG_FLAGS_MAP={fr:"🇫🇷",en:"🇬🇧",es:"🇪🇸",de:"🇩🇪",it:"🇮🇹",pt:"🇧🇷"};
+
+  useEffect(()=>{
+    if(!userId)return;
+    const q=query(collection(db,"feedbacks"),where("userId","==",userId),orderBy("createdAt","desc"));
+    getDocs(q).then(snap=>setMyFeedbacks(snap.docs.map(d=>({id:d.id,...d.data()})))).catch(console.error);
+  },[userId]);
   const sendFeedback=async()=>{
     if(!feedbackText.trim())return;
     if(userId){
@@ -949,7 +956,31 @@ function Parametres({accent,setAccent,lang,setLang,gender,setGender,themeName,se
       </Card>}
     </>}
     {tab==="roadmap"&&<><div style={{fontSize:13,color:th.text2,marginBottom:14,lineHeight:1.6}}>{t.voteHint}</div>{["building","soon","later"].map(status=>{const items=roadmap.filter(r=>r.status===status);if(!items.length)return null;return<div key={status} style={{marginBottom:16}}><SLabel th={th}>{STATUS_MAP[status]}</SLabel>{items.map(r=>(<Card key={r.id} th={th} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1,marginRight:10}}><div style={{fontWeight:700,fontSize:13,color:th.text,marginBottom:2}}>{r.title}</div><div style={{fontSize:11,color:th.text3}}>{r.desc}</div></div><button onClick={()=>onVote(r.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"6px 10px",borderRadius:10,cursor:"pointer",background:votedIds.includes(r.id)?accent+"22":th.bg3,border:`1.5px solid ${votedIds.includes(r.id)?accent:th.border}`,color:votedIds.includes(r.id)?accent:th.text3,flexShrink:0}}><span style={{fontSize:13}}>{votedIds.includes(r.id)?"▲":"△"}</span><span style={{fontSize:11,fontWeight:700}}>{r.votes}</span></button></div></Card>))}</div>;})}  </>}
-    {tab==="feedback"&&<><div style={{fontSize:13,color:th.text2,marginBottom:14}}>Un bug ou une idée ?</div><Card th={th}><SLabel th={th}>Type</SLabel><div style={{display:"flex",gap:8,marginBottom:14}}><Pill active={feedbackType==="bug"} color="#F87171" th={th} onClick={()=>setFeedbackType("bug")}>{t.bugType}</Pill><Pill active={feedbackType==="idea"} color={accent} th={th} onClick={()=>setFeedbackType("idea")}>{t.ideaType}</Pill></div><SLabel th={th}>Description</SLabel><textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)} rows={4} placeholder={feedbackType==="bug"?t.bugPlaceholder:t.ideaPlaceholder} style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:12,padding:"10px 14px",color:th.text,fontSize:13,fontFamily:"inherit",lineHeight:1.6,resize:"none",boxSizing:"border-box",marginBottom:12}}/>{feedbackSent?<div style={{textAlign:"center",padding:12,color:"#4ADE80",fontWeight:700,fontSize:14}}>{t.sent}</div>:<Btn th={th} onClick={sendFeedback} color={feedbackType==="bug"?"#F87171":accent} full disabled={!feedbackText.trim()}>{t.send}</Btn>}</Card></>}
+    {tab==="feedback"&&<>
+      <div style={{fontSize:13,color:th.text2,marginBottom:14}}>Un bug ou une idée ?</div>
+      <Card th={th} style={{marginBottom:16}}>
+        <SLabel th={th}>Type</SLabel>
+        <div style={{display:"flex",gap:8,marginBottom:14}}><Pill active={feedbackType==="bug"} color="#F87171" th={th} onClick={()=>setFeedbackType("bug")}>{t.bugType}</Pill><Pill active={feedbackType==="idea"} color={accent} th={th} onClick={()=>setFeedbackType("idea")}>{t.ideaType}</Pill></div>
+        <SLabel th={th}>Description</SLabel>
+        <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)} rows={4} placeholder={feedbackType==="bug"?t.bugPlaceholder:t.ideaPlaceholder} style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:12,padding:"10px 14px",color:th.text,fontSize:13,fontFamily:"inherit",lineHeight:1.6,resize:"none",boxSizing:"border-box",marginBottom:12}}/>
+        {feedbackSent?<div style={{textAlign:"center",padding:12,color:"#4ADE80",fontWeight:700,fontSize:14}}>{t.sent}</div>:<Btn th={th} onClick={sendFeedback} color={feedbackType==="bug"?"#F87171":accent} full disabled={!feedbackText.trim()}>{t.send}</Btn>}
+      </Card>
+      {myFeedbacks.length>0&&<>
+        <SLabel th={th}>Mes envois</SLabel>
+        {myFeedbacks.map(fb=>{
+          const statusColor=fb.status==="done"?"#4ADE80":fb.status==="progress"?"#FBBF24":th.text3;
+          const statusLabel=fb.status==="done"?"Répondu":fb.status==="progress"?"En cours":"En attente";
+          return(<Card key={fb.id} th={th} style={{marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:700,background:fb.type==="bug"?"rgba(248,113,113,0.12)":"rgba(124,158,255,0.12)",color:fb.type==="bug"?"#F87171":"#7C9EFF"}}>{fb.type==="bug"?"🐛 Bug":"💡 Idée"}</span>
+              <span style={{fontSize:11,color:statusColor,fontWeight:700}}>{statusLabel}</span>
+            </div>
+            <div style={{fontSize:13,color:th.text,marginBottom:fb.response?8:0}}>{fb.text}</div>
+            {fb.response&&<div style={{fontSize:12,color:accent,background:accent+"11",borderRadius:8,padding:"6px 10px"}}>↳ {fb.response}</div>}
+          </Card>);
+        })}
+      </>}
+    </>}
     {showMoodModal&&<MoodModal moods={moods} setMoods={setMoods} lang={lang} accent={accent} th={th} onClose={()=>setShowMoodModal(false)}/>}
   </div>);
 }
@@ -959,6 +990,11 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
   const [tab,setTab]=useState("stats");
   const [comment,setComment]=useState({});
   const [editRoad,setEditRoad]=useState(null);
+  const [editTitle,setEditTitle]=useState({});
+  const [editDesc,setEditDesc]=useState({});
+  const [showAddForm,setShowAddForm]=useState(false);
+  const [newItemTitle,setNewItemTitle]=useState("");
+  const [newItemDesc,setNewItemDesc]=useState("");
   const [adminUsers,setAdminUsers]=useState([]);
   const [adminFeedbacks,setAdminFeedbacks]=useState([]);
   const [adminStats,setAdminStats]=useState({total:0,premium:0});
@@ -990,6 +1026,48 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
     }catch(e){console.error(e);}
   };
 
+  const sendComment=async(fbId)=>{
+    const resp=comment[fbId];
+    if(!resp?.trim())return;
+    try{
+      await updateDoc(doc(db,"feedbacks",fbId),{response:resp.trim(),status:"done"});
+      setAdminFeedbacks(fbs=>fbs.map(f=>f.id===fbId?{...f,response:resp.trim(),status:"done"}:f));
+      setComment(c=>{const n={...c};delete n[fbId];return n;});
+    }catch(e){console.error(e);}
+  };
+
+  const addRoadmapItem=async()=>{
+    if(!newItemTitle.trim())return;
+    try{
+      const docRef=await addDoc(collection(db,"roadmap"),{title:newItemTitle.trim(),desc:newItemDesc.trim(),status:"soon",votes:0,createdAt:serverTimestamp()});
+      setRoadmap(r=>[...r,{id:docRef.id,title:newItemTitle.trim(),desc:newItemDesc.trim(),status:"soon",votes:0}]);
+      setNewItemTitle("");setNewItemDesc("");setShowAddForm(false);
+    }catch(e){console.error(e);}
+  };
+
+  const saveRoadmapItem=async(id)=>{
+    const title=editTitle[id];const desc=editDesc[id];
+    const updates={};
+    if(title!==undefined)updates.title=title;
+    if(desc!==undefined)updates.desc=desc;
+    if(!Object.keys(updates).length){setEditRoad(null);return;}
+    try{
+      await updateDoc(doc(db,"roadmap",String(id)),updates);
+      setRoadmap(r=>r.map(x=>x.id===id?{...x,...updates}:x));
+      setEditTitle(t=>{const n={...t};delete n[id];return n;});
+      setEditDesc(d=>{const n={...d};delete n[id];return n;});
+      setEditRoad(null);
+    }catch(e){console.error(e);}
+  };
+
+  const deleteRoadmapItem=async(id)=>{
+    try{
+      await deleteDoc(doc(db,"roadmap",String(id)));
+      setRoadmap(r=>r.filter(x=>x.id!==id));
+      setEditRoad(null);
+    }catch(e){console.error(e);}
+  };
+
   return(<div>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18}}>
       <button onClick={onBack} style={{background:th.bg3,border:`1px solid ${th.border}`,borderRadius:10,padding:"7px 14px",color:th.text,cursor:"pointer"}}>←</button>
@@ -1017,7 +1095,37 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
           </div>);})
       }
     </Card>}
-    {tab==="roadmap"&&<>{roadmap.map(r=>(<Card key={r.id} th={th} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div><div style={{fontWeight:700,fontSize:13,color:th.text}}>{r.title}</div><div style={{fontSize:10,color:th.text3}}>{r.votes} vote{r.votes!==1?"s":""}</div></div><button onClick={()=>setEditRoad(editRoad===r.id?null:r.id)} style={{background:"none",border:"none",color:accent,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>{editRoad===r.id?"✕":"Modifier"}</button></div>{editRoad===r.id&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>{STATUS_OPTS.map(([v,l])=><Pill key={v} active={r.status===v} color={accent} th={th} onClick={()=>setRoadmap(rm=>rm.map(x=>x.id===r.id?{...x,status:v}:x))} small>{l}</Pill>)}</div>}</Card>))}</>}
+    {tab==="roadmap"&&<>
+      {roadmap.map(r=>(<Card key={r.id} th={th} style={{marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div><div style={{fontWeight:700,fontSize:13,color:th.text}}>{r.title}</div><div style={{fontSize:10,color:th.text3}}>{r.votes} vote{r.votes!==1?"s":""}</div></div>
+          <button onClick={()=>{const opening=editRoad!==r.id;setEditRoad(opening?r.id:null);if(opening){setEditTitle(t=>({...t,[r.id]:r.title}));setEditDesc(d=>({...d,[r.id]:r.desc||""}));}}} style={{background:"none",border:"none",color:accent,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>{editRoad===r.id?"✕":"Modifier"}</button>
+        </div>
+        {editRoad===r.id&&<div style={{marginTop:8}}>
+          <input value={editTitle[r.id]??r.title} onChange={e=>setEditTitle(t=>({...t,[r.id]:e.target.value}))} placeholder="Titre" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:6,boxSizing:"border-box"}}/>
+          <input value={editDesc[r.id]??r.desc??""} onChange={e=>setEditDesc(d=>({...d,[r.id]:e.target.value}))} placeholder="Description" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box"}}/>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+            {STATUS_OPTS.map(([v,l])=><Pill key={v} active={r.status===v} color={accent} th={th} onClick={async()=>{await updateDoc(doc(db,"roadmap",String(r.id)),{status:v}).catch(console.error);setRoadmap(rm=>rm.map(x=>x.id===r.id?{...x,status:v}:x));}} small>{l}</Pill>)}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>saveRoadmapItem(r.id)} style={{flex:1,padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✓ Enregistrer</button>
+            <button onClick={()=>deleteRoadmapItem(r.id)} style={{padding:"6px 12px",background:"rgba(248,113,113,0.12)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:9,color:"#F87171",fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>🗑 Supprimer</button>
+          </div>
+        </div>}
+      </Card>))}
+      {showAddForm
+        ?<Card th={th} style={{marginBottom:10}}>
+          <div style={{fontWeight:700,fontSize:12,color:th.text,marginBottom:8}}>Nouvel élément</div>
+          <input value={newItemTitle} onChange={e=>setNewItemTitle(e.target.value)} placeholder="Titre *" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:6,boxSizing:"border-box"}}/>
+          <input value={newItemDesc} onChange={e=>setNewItemDesc(e.target.value)} placeholder="Description" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box"}}/>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={addRoadmapItem} disabled={!newItemTitle.trim()} style={{flex:1,padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit",opacity:newItemTitle.trim()?1:0.5}}>+ Ajouter</button>
+            <button onClick={()=>{setShowAddForm(false);setNewItemTitle("");setNewItemDesc("");}} style={{padding:"6px 12px",background:th.bg3,border:`1px solid ${th.border}`,borderRadius:9,color:th.text,fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✕</button>
+          </div>
+        </Card>
+        :<button onClick={()=>setShowAddForm(true)} style={{width:"100%",padding:"10px",background:accent+"18",border:`1px dashed ${accent}55`,borderRadius:12,color:accent,fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>+ Nouvel élément</button>
+      }
+    </>}
     {tab==="feedbacks"&&<>
       {adminLoading?<Card th={th}><div style={{color:th.text3,fontSize:13}}>Chargement…</div></Card>:adminFeedbacks.length===0?<Card th={th}><div style={{color:th.text3,fontSize:13}}>Aucun feedback</div></Card>:
         adminFeedbacks.map(fb=>(<Card key={fb.id} th={th} style={{marginBottom:10}}>
@@ -1032,9 +1140,10 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
             </div>
           </div>
           <div style={{fontSize:13,color:th.text,marginBottom:10}}>{fb.text}</div>
+          {fb.response&&<div style={{fontSize:12,color:accent,background:accent+"11",borderRadius:8,padding:"6px 10px",marginBottom:8}}>↳ {fb.response}</div>}
           <div style={{display:"flex",gap:8}}>
-            <input placeholder="Commenter…" value={comment[fb.id]||""} onChange={e=>setComment({...comment,[fb.id]:e.target.value})} style={{flex:1,background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit"}}/>
-            <button style={{padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}}>→</button>
+            <input placeholder="Répondre…" value={comment[fb.id]||""} onChange={e=>setComment({...comment,[fb.id]:e.target.value})} style={{flex:1,background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit"}}/>
+            <button onClick={()=>sendComment(fb.id)} style={{padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}}>→</button>
           </div>
         </Card>))
       }
@@ -1102,6 +1211,27 @@ export default function App({
   const [objectives, setObjectives] = useState([]);
   const [roadmap, setRoadmap] = useState(INIT_ROADMAP);
   const [votedIds, setVotedIds] = useState([]);
+
+  // Load roadmap from Firestore (fallback to INIT_ROADMAP if empty)
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "roadmap"));
+        if (!snap.empty) {
+          setRoadmap(snap.docs.map(d => ({...d.data(), id: d.id})));
+        }
+      } catch(e) { console.error("Roadmap load error:", e); }
+    })();
+  }, []);
+
+  // Persist votedIds per user in localStorage
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const saved = localStorage.getItem(`lumio_votes_${userId}`);
+      if (saved) setVotedIds(JSON.parse(saved));
+    } catch(e) {}
+  }, [userId]);
   const [adVisible, setAdVisible] = useState(false);
   const [moods, setMoods] = useState(()=>DEFAULT_MOODS.map(m=>({...m,label:I18N.fr.moods[m.id]})));
 
@@ -1132,8 +1262,16 @@ export default function App({
   },[plan]);
 
   const handleVote = id => {
-    if(votedIds.includes(id)){setVotedIds(v=>v.filter(x=>x!==id));setRoadmap(r=>r.map(x=>x.id===id?{...x,votes:Math.max(0,x.votes-1)}:x));}
-    else{setVotedIds(v=>[...v,id]);setRoadmap(r=>r.map(x=>x.id===id?{...x,votes:x.votes+1}:x));}
+    const alreadyVoted = votedIds.includes(id);
+    const newVoted = alreadyVoted ? votedIds.filter(x => x !== id) : [...votedIds, id];
+    setVotedIds(newVoted);
+    if (userId) localStorage.setItem(`lumio_votes_${userId}`, JSON.stringify(newVoted));
+    setRoadmap(r => {
+      const newR = r.map(x => x.id === id ? {...x, votes: alreadyVoted ? Math.max(0, x.votes-1) : x.votes+1} : x);
+      const item = newR.find(x => x.id === id);
+      if (item) updateDoc(doc(db, "roadmap", String(id)), {votes: item.votes}).catch(console.error);
+      return newR;
+    });
   };
 
   const NAV = [
@@ -1161,9 +1299,9 @@ export default function App({
             <div style={{fontSize:9,color:th.text3,fontWeight:600}}>{APP_VERSION}</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,fontWeight:700,background:badgeColor+"22",border:`1px solid ${badgeColor}44`,color:badgeColor}}>{badgeLabel}</span>
+            {!isAdmin && <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,fontWeight:700,background:badgeColor+"22",border:`1px solid ${badgeColor}44`,color:badgeColor}}>{badgeLabel}</span>}
             {isAdmin && (
-              <button onClick={()=>setScreen("admin")} style={{background:"rgba(255,80,80,0.1)",border:"1px solid rgba(255,80,80,0.2)",borderRadius:8,padding:"3px 8px",color:"#ff9999",fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Admin</button>
+              <button onClick={()=>setScreen("admin")} style={{background:"rgba(255,80,80,0.1)",border:"1px solid rgba(255,80,80,0.2)",borderRadius:8,padding:"3px 8px",color:"#ff9999",fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>🔐 Admin</button>
             )}
             <MoodCell mood1={data[CUR_M]?.[TODAY]?.mood1} mood2={data[CUR_M]?.[TODAY]?.mood2} size={26} th={th} moods={moods}/>
           </div>
