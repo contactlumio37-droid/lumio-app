@@ -861,7 +861,7 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
   const [form,setForm]=useState({title:"",type:"checklist",unit:"",target:"",initial:"",items:[""]});
   const [editDay,setEditDay]=useState(null);
   const last7=Array.from({length:7},(_,i)=>{const d=new Date(NOW);d.setDate(TODAY-(6-i));const wdNames={fr:["D","L","M","M","J","V","S"],en:["S","M","T","W","T","F","S"],es:["D","L","M","X","J","V","S"],de:["S","M","D","M","D","F","S"],it:["D","L","M","M","G","V","S"],pt:["D","S","T","Q","Q","S","S"]};const wd=d.getDay();return{label:(wdNames[lang]||wdNames.fr)[wd],entry:data[d.getMonth()]?.[d.getDate()],day:d.getDate(),month:d.getMonth()};});
-  const sportStreak=(()=>{let s=0;for(let d=TODAY;d>=1;d--){if(data[CUR_M]?.[d]?.trackers?.sport)s++;else break;}return s;})();
+  const sportStreak=(()=>{let s=0;const cur=new Date(NOW);for(let i=0;i<365;i++){const m=cur.getMonth(),d=cur.getDate();if(data[m]?.[d]?.trackers?.sport)s++;else break;cur.setDate(d-1);}return s;})();
   const WCAT=[{id:"objectives",l:`🎯 ${t.objectives}`},{id:"weekMoods",l:t.weekMoods},{id:"streaks",l:t.streaks},{id:"aiInsight",l:t.insight}];
 
   const submitObj=()=>{
@@ -938,7 +938,7 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
       </div>)}
 
       {widgets.includes("weekMoods")&&<Card th={th}><SLabel th={th}>{t.weekMoods} — clic ✏</SLabel><div style={{display:"flex",justifyContent:"space-between"}}>{last7.map((d,i)=>(<button key={i} onClick={()=>setEditDay({day:d.day,month:d.month})} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:"none",border:"none",cursor:"pointer",padding:"4px 2px",borderRadius:10}}><span style={{fontSize:9,color:th.text3}}>{d.label}</span><MoodCell mood1={d.entry?.mood1} mood2={d.entry?.mood2} size={32} th={th} moods={moods}/></button>))}</div></Card>}
-      {widgets.includes("streaks")&&<Card th={th}><SLabel th={th}>{t.streaks}</SLabel><div style={{display:"flex",gap:10}}><div style={{flex:1,background:"#4ADE8011",borderRadius:12,padding:"10px 14px",border:"1px solid #4ADE8022"}}><div style={{fontSize:24,fontWeight:800,color:"#4ADE80"}}>{sportStreak}</div><div style={{fontSize:10,color:th.text3}}>{t.sportDays}</div></div><div style={{flex:1,background:accent+"11",borderRadius:12,padding:"10px 14px",border:`1px solid ${accent}22`}}><div style={{fontSize:24,fontWeight:800,color:accent}}>{Object.keys(data[CUR_M]||{}).length}</div><div style={{fontSize:10,color:th.text3}}>{t.filledDays}</div></div></div></Card>}
+      {widgets.includes("streaks")&&<Card th={th}><SLabel th={th}>{t.streaks}</SLabel><div style={{display:"flex",gap:10}}><div style={{flex:1,background:"#4ADE8011",borderRadius:12,padding:"10px 14px",border:"1px solid #4ADE8022"}}><div style={{fontSize:24,fontWeight:800,color:"#4ADE80"}}>{sportStreak}</div><div style={{fontSize:10,color:th.text3}}>{t.sportDays}</div></div><div style={{flex:1,background:accent+"11",borderRadius:12,padding:"10px 14px",border:`1px solid ${accent}22`}}><div style={{fontSize:24,fontWeight:800,color:accent}}>{last7.filter(d=>d.entry).length}</div><div style={{fontSize:10,color:th.text3}}>{t.filledDays}</div></div></div></Card>}
       {widgets.includes("aiInsight")&&<Card th={th} style={{border:`1px solid ${accent}22`,background:accent+"08"}}><SLabel th={th}>{t.insight}</SLabel><p style={{margin:0,fontSize:13,lineHeight:1.7,color:th.text2}}>{t.insightText(firstName,sportStreak)}</p></Card>}
     </div>
 
