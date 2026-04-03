@@ -572,6 +572,7 @@ function RichEditor({value,onChange,placeholder,minHeight=120,accent,th}){
   const EMOJIS=["😊","😢","😤","😴","🥰","😰","🤒","💪","✨","🔥","💙","🌟","🙏","😮‍💨","🫂","⚡","🌱","🎯","💭","❤️","😂","🥲","🤗","😌","🫶"];
   const HLS=["#fbbf2499","#4ADE8099","#60A5FA99","#F472B699","#A78BFA99","#FB923C99"];
   const exec=(cmd,val=null)=>{document.execCommand(cmd,false,val);ref.current?.focus();};
+  useEffect(()=>{if(!value&&ref.current)ref.current.innerHTML='';},[value]);
   return(
     <div style={{border:`1px solid ${th.border2}`,borderRadius:14,overflow:"visible",background:th.inputBg,position:"relative"}}>
       <div style={{display:"flex",gap:3,padding:"7px 10px",borderBottom:`1px solid ${th.border}`,flexWrap:"wrap",alignItems:"center",background:th.bg3,borderRadius:"14px 14px 0 0"}}>
@@ -861,7 +862,7 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
   const [form,setForm]=useState({title:"",type:"checklist",unit:"",target:"",initial:"",items:[""]});
   const [editDay,setEditDay]=useState(null);
   const last7=Array.from({length:7},(_,i)=>{const d=new Date(NOW);d.setDate(TODAY-(6-i));const wdNames={fr:["D","L","M","M","J","V","S"],en:["S","M","T","W","T","F","S"],es:["D","L","M","X","J","V","S"],de:["S","M","D","M","D","F","S"],it:["D","L","M","M","G","V","S"],pt:["D","S","T","Q","Q","S","S"]};const wd=d.getDay();return{label:(wdNames[lang]||wdNames.fr)[wd],entry:data[d.getMonth()]?.[d.getDate()],day:d.getDate(),month:d.getMonth()};});
-  const sportStreak=(()=>{let s=0;for(let d=TODAY;d>=1;d--){if(data[CUR_M]?.[d]?.trackers?.sport)s++;else break;}return s;})();
+  const sportStreak=(()=>{let s=0;const cur=new Date(NOW);for(let i=0;i<365;i++){const m=cur.getMonth(),d=cur.getDate();if(data[m]?.[d]?.trackers?.sport)s++;else break;cur.setDate(d-1);}return s;})();
   const WCAT=[{id:"objectives",l:`🎯 ${t.objectives}`},{id:"weekMoods",l:t.weekMoods},{id:"streaks",l:t.streaks},{id:"aiInsight",l:t.insight}];
 
   const submitObj=()=>{
@@ -938,7 +939,7 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
       </div>)}
 
       {widgets.includes("weekMoods")&&<Card th={th}><SLabel th={th}>{t.weekMoods} — clic ✏</SLabel><div style={{display:"flex",justifyContent:"space-between"}}>{last7.map((d,i)=>(<button key={i} onClick={()=>setEditDay({day:d.day,month:d.month})} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:"none",border:"none",cursor:"pointer",padding:"4px 2px",borderRadius:10}}><span style={{fontSize:9,color:th.text3}}>{d.label}</span><MoodCell mood1={d.entry?.mood1} mood2={d.entry?.mood2} size={32} th={th} moods={moods}/></button>))}</div></Card>}
-      {widgets.includes("streaks")&&<Card th={th}><SLabel th={th}>{t.streaks}</SLabel><div style={{display:"flex",gap:10}}><div style={{flex:1,background:"#4ADE8011",borderRadius:12,padding:"10px 14px",border:"1px solid #4ADE8022"}}><div style={{fontSize:24,fontWeight:800,color:"#4ADE80"}}>{sportStreak}</div><div style={{fontSize:10,color:th.text3}}>{t.sportDays}</div></div><div style={{flex:1,background:accent+"11",borderRadius:12,padding:"10px 14px",border:`1px solid ${accent}22`}}><div style={{fontSize:24,fontWeight:800,color:accent}}>{Object.keys(data[CUR_M]||{}).length}</div><div style={{fontSize:10,color:th.text3}}>{t.filledDays}</div></div></div></Card>}
+      {widgets.includes("streaks")&&<Card th={th}><SLabel th={th}>{t.streaks}</SLabel><div style={{display:"flex",gap:10}}><div style={{flex:1,background:"#4ADE8011",borderRadius:12,padding:"10px 14px",border:"1px solid #4ADE8022"}}><div style={{fontSize:24,fontWeight:800,color:"#4ADE80"}}>{sportStreak}</div><div style={{fontSize:10,color:th.text3}}>{t.sportDays}</div></div><div style={{flex:1,background:accent+"11",borderRadius:12,padding:"10px 14px",border:`1px solid ${accent}22`}}><div style={{fontSize:24,fontWeight:800,color:accent}}>{last7.filter(d=>d.entry).length}</div><div style={{fontSize:10,color:th.text3}}>{t.filledDays}</div></div></div></Card>}
       {widgets.includes("aiInsight")&&<Card th={th} style={{border:`1px solid ${accent}22`,background:accent+"08"}}><SLabel th={th}>{t.insight}</SLabel><p style={{margin:0,fontSize:13,lineHeight:1.7,color:th.text2}}>{t.insightText(firstName,sportStreak)}</p></Card>}
     </div>
 
@@ -1103,9 +1104,9 @@ function Suivi({data,setData,trackers,moods,accent,th,lang}){
 
 function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdPopup }) {
   const t = I18N[lang] || I18N.fr;
-  const [mode, setMode] = useState("journal");
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [sortAsc, setSortAsc] = useState(false);
 
   const submitEntry = () => {
     const content = draft.trim();
@@ -1149,24 +1150,17 @@ function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdP
     }
   };
 
+  const sorted = [...journalEntries].sort((a,b)=>sortAsc?a.id-b.id:b.id-a.id);
+
   return (
     <div>
-      <div style={{ fontWeight: 800, fontSize: 17, color: th.text, marginBottom: 10 }}>
-        {t.journal}
-      </div>
-
-      <div style={{ marginBottom: 12 }}>
-        <ToggleBar
-          th={th}
-          options={[
-            ["journal", t.journalMode],
-            ["stream", t.streamMode],
-          ]}
-          value={mode}
-          onChange={setMode}
-          accent={accent}
-          small
-        />
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 10 }}>
+        <div style={{ fontWeight: 800, fontSize: 17, color: th.text }}>{t.journal}</div>
+        {journalEntries.length > 1 && (
+          <button onClick={()=>setSortAsc(v=>!v)} style={{ background:"none", border:`1px solid ${th.border}`, borderRadius:8, padding:"4px 10px", color:th.text3, cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>
+            {sortAsc ? "↑" : "↓"}
+          </button>
+        )}
       </div>
 
       <Card th={th} style={{ marginBottom: 12 }}>
@@ -1207,7 +1201,7 @@ function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdP
           </Card>
         )}
 
-        {journalEntries.map((entry) => (
+        {sorted.map((entry) => (
           <Card key={entry.id} th={th}>
             <div
               style={{
