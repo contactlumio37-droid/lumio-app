@@ -572,6 +572,7 @@ function RichEditor({value,onChange,placeholder,minHeight=120,accent,th}){
   const EMOJIS=["😊","😢","😤","😴","🥰","😰","🤒","💪","✨","🔥","💙","🌟","🙏","😮‍💨","🫂","⚡","🌱","🎯","💭","❤️","😂","🥲","🤗","😌","🫶"];
   const HLS=["#fbbf2499","#4ADE8099","#60A5FA99","#F472B699","#A78BFA99","#FB923C99"];
   const exec=(cmd,val=null)=>{document.execCommand(cmd,false,val);ref.current?.focus();};
+  useEffect(()=>{if(!value&&ref.current)ref.current.innerHTML='';},[value]);
   return(
     <div style={{border:`1px solid ${th.border2}`,borderRadius:14,overflow:"visible",background:th.inputBg,position:"relative"}}>
       <div style={{display:"flex",gap:3,padding:"7px 10px",borderBottom:`1px solid ${th.border}`,flexWrap:"wrap",alignItems:"center",background:th.bg3,borderRadius:"14px 14px 0 0"}}>
@@ -1103,9 +1104,9 @@ function Suivi({data,setData,trackers,moods,accent,th,lang}){
 
 function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdPopup }) {
   const t = I18N[lang] || I18N.fr;
-  const [mode, setMode] = useState("journal");
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [sortAsc, setSortAsc] = useState(false);
 
   const submitEntry = () => {
     const content = draft.trim();
@@ -1149,24 +1150,17 @@ function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdP
     }
   };
 
+  const sorted = [...journalEntries].sort((a,b)=>sortAsc?a.id-b.id:b.id-a.id);
+
   return (
     <div>
-      <div style={{ fontWeight: 800, fontSize: 17, color: th.text, marginBottom: 10 }}>
-        {t.journal}
-      </div>
-
-      <div style={{ marginBottom: 12 }}>
-        <ToggleBar
-          th={th}
-          options={[
-            ["journal", t.journalMode],
-            ["stream", t.streamMode],
-          ]}
-          value={mode}
-          onChange={setMode}
-          accent={accent}
-          small
-        />
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 10 }}>
+        <div style={{ fontWeight: 800, fontSize: 17, color: th.text }}>{t.journal}</div>
+        {journalEntries.length > 1 && (
+          <button onClick={()=>setSortAsc(v=>!v)} style={{ background:"none", border:`1px solid ${th.border}`, borderRadius:8, padding:"4px 10px", color:th.text3, cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>
+            {sortAsc ? "↑" : "↓"}
+          </button>
+        )}
       </div>
 
       <Card th={th} style={{ marginBottom: 12 }}>
@@ -1207,7 +1201,7 @@ function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdP
           </Card>
         )}
 
-        {journalEntries.map((entry) => (
+        {sorted.map((entry) => (
           <Card key={entry.id} th={th}>
             <div
               style={{
