@@ -1,0 +1,4 @@
+-- Placeholder for remote migration version 20260518.
+-- The schema was applied directly via the Supabase dashboard before CI/CD
+-- was configured. The actual schema SQL lives in 20260518000001_init_schema.sql.
+-- This file exists solely so supabase db push can match the remote version entry.
