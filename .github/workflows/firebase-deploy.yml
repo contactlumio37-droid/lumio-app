@@ -46,6 +46,11 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
+      - name: Repair orphan remote migration
+        run: supabase migration repair --status reverted 20260518
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
       - name: Apply Supabase migrations
         run: supabase db push
         env:
