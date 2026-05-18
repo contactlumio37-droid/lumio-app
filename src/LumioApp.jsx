@@ -1,7 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { db } from "./firebase";
-import { doc, setDoc, collection, addDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "./firebase";
+import { deleteUser } from "firebase/auth";
+import { doc, setDoc, collection, addDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp, limit } from "firebase/firestore";
+import { PrivacyPolicyModal } from "./components/PrivacyPolicy";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -61,6 +64,11 @@ const I18N = {
     firstName:"Prénom",
     lastName:"Nom",
     profileSection:"👤 Profil",
+    privacy:"🔏 Politique de confidentialité",
+    deleteAccount:"🗑 Supprimer mon compte",
+    deleteAccountConfirm:"⚠️ Supprimer définitivement votre compte et toutes vos données ? Cette action est irréversible.",
+    deleteAccountReauth:"Pour supprimer votre compte, veuillez vous reconnecter d'abord.",
+    deleteAccountError:"Erreur lors de la suppression. Réessayez.",
   },
   en: {
     months: ["January","February","March","April","May","June","July","August","September","October","November","December"],
@@ -118,6 +126,11 @@ const I18N = {
     firstName:"First name",
     lastName:"Last name",
     profileSection:"👤 Profile",
+    privacy:"🔏 Privacy policy",
+    deleteAccount:"🗑 Delete my account",
+    deleteAccountConfirm:"⚠️ Permanently delete your account and all your data? This action is irreversible.",
+    deleteAccountReauth:"To delete your account, please sign in again first.",
+    deleteAccountError:"Error during deletion. Please try again.",
   },
   es: {
     months: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
@@ -175,6 +188,11 @@ const I18N = {
     firstName:"Nombre",
     lastName:"Apellido",
     profileSection:"👤 Perfil",
+    privacy:"🔏 Política de privacidad",
+    deleteAccount:"🗑 Eliminar mi cuenta",
+    deleteAccountConfirm:"⚠️ ¿Eliminar definitivamente tu cuenta y todos tus datos? Esta acción es irreversible.",
+    deleteAccountReauth:"Para eliminar tu cuenta, vuelve a iniciar sesión primero.",
+    deleteAccountError:"Error al eliminar. Inténtalo de nuevo.",
   },
   de: {
     months: ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
@@ -232,6 +250,11 @@ const I18N = {
     firstName:"Vorname",
     lastName:"Nachname",
     profileSection:"👤 Profil",
+    privacy:"🔏 Datenschutzrichtlinie",
+    deleteAccount:"🗑 Konto löschen",
+    deleteAccountConfirm:"⚠️ Dein Konto und alle Daten dauerhaft löschen? Diese Aktion ist unwiderruflich.",
+    deleteAccountReauth:"Um dein Konto zu löschen, melde dich bitte erneut an.",
+    deleteAccountError:"Fehler beim Löschen. Bitte erneut versuchen.",
   },
   it: {
     months: ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"],
@@ -289,6 +312,11 @@ const I18N = {
     firstName:"Nome",
     lastName:"Cognome",
     profileSection:"👤 Profilo",
+    privacy:"🔏 Informativa sulla privacy",
+    deleteAccount:"🗑 Elimina il mio account",
+    deleteAccountConfirm:"⚠️ Eliminare definitivamente il tuo account e tutti i dati? Questa azione è irreversibile.",
+    deleteAccountReauth:"Per eliminare il tuo account, accedi di nuovo prima.",
+    deleteAccountError:"Errore durante l'eliminazione. Riprova.",
   },
   pt: {
     months: ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"],
@@ -346,6 +374,11 @@ const I18N = {
     firstName:"Nome",
     lastName:"Sobrenome",
     profileSection:"👤 Perfil",
+    privacy:"🔏 Política de privacidade",
+    deleteAccount:"🗑 Excluir minha conta",
+    deleteAccountConfirm:"⚠️ Excluir permanentemente sua conta e todos os seus dados? Esta ação é irreversível.",
+    deleteAccountReauth:"Para excluir sua conta, faça login novamente primeiro.",
+    deleteAccountError:"Erro ao excluir. Tente novamente.",
   },
 };
 
@@ -1254,7 +1287,7 @@ function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdP
                 lineHeight: 1.8,
                 fontFamily: "Georgia, serif",
               }}
-              dangerouslySetInnerHTML={{ __html: entry.content }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(entry.content) }}
             />
           </Card>
         ))}
@@ -1289,6 +1322,8 @@ function Parametres({
   plan,
   th,
   onLogout,
+  onDeleteAccount,
+  onShowPrivacy,
 }) {
   const t = I18N[lang] || I18N.fr;
   const [showMoodModal, setShowMoodModal] = useState(false);
@@ -1309,7 +1344,7 @@ function Parametres({
     if (!text) return;
 
     const item = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       type: feedbackType,
       text,
       createdAt: new Date().toISOString(),
@@ -1453,7 +1488,18 @@ function Parametres({
             <div style={{ fontSize: 13, fontWeight: 700, color: th.text }}>{t.dailyReminder}</div>
             <div style={{ fontSize: 11, color: th.text3 }}>{t.time}: {reminderTime}</div>
           </div>
-          <Toggle value={notifications} onChange={setNotifications} accent={accent} />
+          <Toggle
+            value={notifications}
+            onChange={async (val) => {
+              if (val && "Notification" in window) {
+                const perm = await Notification.requestPermission();
+                setNotifications(perm === "granted");
+              } else {
+                setNotifications(val);
+              }
+            }}
+            accent={accent}
+          />
         </div>
 
         <TInput
@@ -1583,9 +1629,21 @@ function Parametres({
         )}
       </Card>
 
-      <Btn th={th} outline color="#F87171" onClick={onLogout} full>
+      {onShowPrivacy && (
+        <Btn th={th} outline color="#7C9EFF" onClick={onShowPrivacy} full style={{ marginBottom: 8 }}>
+          {t.privacy || "🔏 Politique de confidentialité"}
+        </Btn>
+      )}
+
+      <Btn th={th} outline color="#F87171" onClick={onLogout} full style={{ marginBottom: 8 }}>
         {t.logout}
       </Btn>
+
+      {onDeleteAccount && (
+        <Btn th={th} outline color="#6b7280" onClick={onDeleteAccount} full>
+          {t.deleteAccount || "🗑 Supprimer mon compte"}
+        </Btn>
+      )}
 
       {showMoodModal && (
         <MoodModal
@@ -1622,12 +1680,12 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
     (async()=>{
       setAdminLoading(true);
       try{
-        const usersSnap=await getDocs(collection(db,"users"));
+        const usersSnap=await getDocs(query(collection(db,"users"),limit(50)));
         const users=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
         const premium=users.filter(u=>u.role==="paid"||u.role==="admin").length;
         setAdminStats({total:users.length,premium});
         setAdminUsers([...users].sort((a,b)=>(b.createdAt?.toMillis?.()??0)-(a.createdAt?.toMillis?.()??0)).slice(0,10));
-        const fbQ=query(collection(db,"feedbacks"),orderBy("createdAt","desc"));
+        const fbQ=query(collection(db,"feedbacks"),orderBy("createdAt","desc"),limit(100));
         const fbSnap=await getDocs(fbQ);
         setAdminFeedbacks(fbSnap.docs.map(d=>({id:d.id,...d.data()})));
       }catch(e){console.error("Admin load error:",e);}
@@ -1871,7 +1929,7 @@ function lsSet(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
-function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
+function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free", onLogout, onDeleteAccount }) {
   // ── Synchronous localStorage load (instant — no flash on F5) ───────────────
   const lsKey = `lumio_${userId}`;
   const [ls] = useState(() => lsGet(lsKey, {}));
@@ -1919,6 +1977,7 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
   const [roadmap, setRoadmap] = useState(INIT_ROADMAP);
   const [feedbackItems, setFeedbackItems] = useState(() => ls.feedbackItems || []);
   const [showAd, setShowAd] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   const th = THEMES[theme] || THEMES.dark;
   const t = I18N[lang] || I18N.fr;
@@ -2034,6 +2093,72 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
   useEffect(() => { scheduleSave(); },
     [lang, theme, accent, gender, notifications, reminderTime, firstName, lastName, moods, trackers, widgets, objectives, journalEntries, data, scheduleSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Flush pending Firestore save before page unloads to avoid data loss
+  useEffect(() => {
+    const flush = () => {
+      if (!saveTimer.current || !userId || !fsLoaded.current) return;
+      clearTimeout(saveTimer.current);
+      const s = stateSnap.current;
+      const payload = JSON.stringify({
+        prefs: { lang: s.lang, theme: s.theme, accent: s.accent, gender: s.gender, notifications: s.notifications, reminderTime: s.reminderTime, firstName: s.firstName, lastName: s.lastName, moods: s.moods, trackers: s.trackers, widgets: s.widgets },
+        objectives: s.objectives,
+        journal: s.journalEntries,
+      });
+      navigator.sendBeacon(`/__/firebase/session`, payload);
+    };
+    window.addEventListener("beforeunload", flush);
+    return () => window.removeEventListener("beforeunload", flush);
+  }, [userId]);
+
+  // Open privacy modal from anywhere (GDPR banner link, settings)
+  useEffect(() => {
+    const handler = () => setShowPrivacy(true);
+    window.addEventListener("lumio:privacy", handler);
+    return () => window.removeEventListener("lumio:privacy", handler);
+  }, []);
+
+  // Hard-delete all user data then remove the Firebase Auth account
+  const handleDeleteAccount = useCallback(async () => {
+    const t = I18N[lang] || I18N.fr;
+    const confirmed = window.confirm(
+      t.deleteAccountConfirm ||
+        "⚠️ Supprimer définitivement votre compte et toutes vos données ? Cette action est irréversible."
+    );
+    if (!confirmed || !userId) return;
+
+    try {
+      // Delete Firestore subcollections first
+      const subcolls = ["days", "journal", "settings"];
+      for (const sub of subcolls) {
+        const snap = await getDocs(collection(db, "users", userId, sub));
+        await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+      }
+      await deleteDoc(doc(db, "users", userId));
+      // Clear local caches
+      try {
+        localStorage.removeItem(`lumio_${userId}`);
+        localStorage.removeItem(`lumio_${userId}_days`);
+      } catch {}
+      // Delete Firebase Auth user (requires recent login)
+      if (auth.currentUser) await deleteUser(auth.currentUser);
+      if (onDeleteAccount) await onDeleteAccount();
+    } catch (err) {
+      if (err?.code === "auth/requires-recent-login") {
+        alert(
+          (I18N[lang] || I18N.fr).deleteAccountReauth ||
+            "Pour supprimer votre compte, veuillez vous reconnecter d'abord."
+        );
+        onLogout();
+      } else {
+        console.error("Delete account error:", err);
+        alert(
+          (I18N[lang] || I18N.fr).deleteAccountError ||
+            "Erreur lors de la suppression. Réessayez."
+        );
+      }
+    }
+  }, [userId, lang, onDeleteAccount, onLogout]);
+
   const rootStyle = {
     minHeight: "100vh",
     background: th.bg,
@@ -2143,6 +2268,8 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
             plan={plan}
             th={th}
             onLogout={onLogout}
+            onDeleteAccount={handleDeleteAccount}
+            onShowPrivacy={() => setShowPrivacy(true)}
           />
         )}
 
@@ -2239,6 +2366,10 @@ function LumioApp({ userId = "", displayName = "", role = "free", onLogout }) {
           lang={lang}
           onClose={() => setShowFeedbackModal(false)}
         />
+      )}
+
+      {showPrivacy && (
+        <PrivacyPolicyModal th={th} onClose={() => setShowPrivacy(false)} />
       )}
     </div>
   );

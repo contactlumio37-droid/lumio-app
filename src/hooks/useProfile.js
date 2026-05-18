@@ -1,7 +1,7 @@
 import { useAuth, ROLES } from "../context/AuthContext";
 
 export function useProfile() {
-  const { user, role, loading, login, register, loginWithGoogle, logout } = useAuth();
+  const { user, role, loading, login, register, loginWithGoogle, logout, resetPassword, deleteAccount } = useAuth();
 
   return {
     user,
@@ -14,5 +14,7 @@ export function useProfile() {
     register,
     loginWithGoogle,
     logout,
+    resetPassword,
+    deleteAccount,
   };
 }
