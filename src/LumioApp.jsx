@@ -1,8 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { db } from "./firebase";
-import { doc, setDoc, collection, addDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp, limit } from "firebase/firestore";
+import { supabase } from "./lib/supabase";
 import { PrivacyPolicyModal } from "./components/PrivacyPolicy";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
@@ -1356,12 +1355,7 @@ function Parametres({
 
     if (userId) {
       try {
-        await addDoc(collection(db, "feedbacks"), {
-          userId,
-          type: feedbackType,
-          text,
-          createdAt: serverTimestamp(),
-        });
+        await supabase.from("feedbacks").insert({ user_id: userId, type: feedbackType, text });
       } catch (err) {
         console.error("Feedback save error:", err);
       }
@@ -1679,14 +1673,13 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
     (async()=>{
       setAdminLoading(true);
       try{
-        const usersSnap=await getDocs(query(collection(db,"users"),limit(50)));
-        const users=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
-        const premium=users.filter(u=>u.role==="paid"||u.role==="admin").length;
+        const {data:profiles}=await supabase.from("profiles").select("id,username,plan,created_at").limit(50);
+        const users=profiles||[];
+        const premium=users.filter(u=>u.plan==="plus").length;
         setAdminStats({total:users.length,premium});
-        setAdminUsers([...users].sort((a,b)=>(b.createdAt?.toMillis?.()??0)-(a.createdAt?.toMillis?.()??0)).slice(0,10));
-        const fbQ=query(collection(db,"feedbacks"),orderBy("createdAt","desc"),limit(100));
-        const fbSnap=await getDocs(fbQ);
-        setAdminFeedbacks(fbSnap.docs.map(d=>({id:d.id,...d.data()})));
+        setAdminUsers([...users].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,10));
+        const {data:fbs}=await supabase.from("feedbacks").select("*").order("created_at",{ascending:false}).limit(100);
+        setAdminFeedbacks(fbs||[]);
       }catch(e){console.error("Admin load error:",e);}
       finally{setAdminLoading(false);}
     })();
@@ -1694,7 +1687,7 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
 
   const updateFbStatus=async(fbId,status)=>{
     try{
-      await updateDoc(doc(db,"feedbacks",fbId),{status});
+      await supabase.from("feedbacks").update({status}).eq("id",fbId);
       setAdminFeedbacks(fbs=>fbs.map(f=>f.id===fbId?{...f,status}:f));
     }catch(e){console.error(e);}
   };
@@ -1703,7 +1696,7 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
     const resp=comment[fbId];
     if(!resp?.trim())return;
     try{
-      await updateDoc(doc(db,"feedbacks",fbId),{response:resp.trim(),status:"done"});
+      await supabase.from("feedbacks").update({response:resp.trim(),status:"done"}).eq("id",fbId);
       setAdminFeedbacks(fbs=>fbs.map(f=>f.id===fbId?{...f,response:resp.trim(),status:"done"}:f));
       setComment(c=>{const n={...c};delete n[fbId];return n;});
     }catch(e){console.error(e);}
@@ -1712,8 +1705,8 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
   const addRoadmapItem=async()=>{
     if(!newItemTitle.trim())return;
     try{
-      const docRef=await addDoc(collection(db,"roadmap"),{title:newItemTitle.trim(),desc:newItemDesc.trim(),status:"soon",votes:0,createdAt:serverTimestamp()});
-      setRoadmap(r=>[...r,{id:docRef.id,title:newItemTitle.trim(),desc:newItemDesc.trim(),status:"soon",votes:0}]);
+      const {data:newItem}=await supabase.from("roadmap").insert({title:newItemTitle.trim(),description:newItemDesc.trim(),status:"soon",votes:0}).select().single();
+      if(newItem)setRoadmap(r=>[...r,{...newItem,desc:newItem.description}]);
       setNewItemTitle("");setNewItemDesc("");setShowAddForm(false);
     }catch(e){console.error(e);}
   };
@@ -1722,11 +1715,11 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
     const title=editTitle[id];const desc=editDesc[id];
     const updates={};
     if(title!==undefined)updates.title=title;
-    if(desc!==undefined)updates.desc=desc;
+    if(desc!==undefined)updates.description=desc;
     if(!Object.keys(updates).length){setEditRoad(null);return;}
     try{
-      await updateDoc(doc(db,"roadmap",String(id)),updates);
-      setRoadmap(r=>r.map(x=>x.id===id?{...x,...updates}:x));
+      await supabase.from("roadmap").update(updates).eq("id",id);
+      setRoadmap(r=>r.map(x=>x.id===id?{...x,...updates,desc:updates.description??x.desc}:x));
       setEditTitle(t=>{const n={...t};delete n[id];return n;});
       setEditDesc(d=>{const n={...d};delete n[id];return n;});
       setEditRoad(null);
@@ -1735,7 +1728,7 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
 
   const deleteRoadmapItem=async(id)=>{
     try{
-      await deleteDoc(doc(db,"roadmap",String(id)));
+      await supabase.from("roadmap").delete().eq("id",id);
       setRoadmap(r=>r.filter(x=>x.id!==id));
       setEditRoad(null);
     }catch(e){console.error(e);}
@@ -1761,7 +1754,7 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
     </div>}
     {tab==="users"&&<Card th={th}><SLabel th={th}>Derniers inscrits</SLabel>
       {adminLoading?<div style={{color:th.text3,fontSize:13}}>Chargement…</div>:adminUsers.length===0?<div style={{color:th.text3,fontSize:13}}>Aucun utilisateur</div>:
-        adminUsers.map(u=>{const name=u.displayName||(u.email?.split("@")[0])||"Utilisateur";const isPrem=u.role==="paid"||u.role==="admin";return(
+        adminUsers.map(u=>{const name=u.username||"Utilisateur";const isPrem=u.plan==="plus";return(
           <div key={u.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${th.border}`}}>
             <div style={{fontSize:12,color:th.text}}>{name}</div>
             <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,background:isPrem?accent+"22":th.bg3,color:isPrem?accent:th.text3,fontWeight:700}}>{isPrem?"Premium":"Gratuit"}</span>
@@ -1778,7 +1771,7 @@ function Admin({onBack,roadmap,setRoadmap,th,accent,lang,userId}){
           <input value={editTitle[r.id]??r.title} onChange={e=>setEditTitle(t=>({...t,[r.id]:e.target.value}))} placeholder="Titre" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:6,boxSizing:"border-box"}}/>
           <input value={editDesc[r.id]??r.desc??""} onChange={e=>setEditDesc(d=>({...d,[r.id]:e.target.value}))} placeholder="Description" style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:9,padding:"6px 10px",color:th.text,fontSize:12,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box"}}/>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-            {STATUS_OPTS.map(([v,l])=><Pill key={v} active={r.status===v} color={accent} th={th} onClick={async()=>{await updateDoc(doc(db,"roadmap",String(r.id)),{status:v}).catch(console.error);setRoadmap(rm=>rm.map(x=>x.id===r.id?{...x,status:v}:x));}}>{l}</Pill>)}
+            {STATUS_OPTS.map(([v,l])=><Pill key={v} active={r.status===v} color={accent} th={th} onClick={async()=>{await supabase.from("roadmap").update({status:v}).eq("id",r.id).catch(console.error);setRoadmap(rm=>rm.map(x=>x.id===r.id?{...x,status:v}:x));}}>{l}</Pill>)}
           </div>
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>saveRoadmapItem(r.id)} style={{flex:1,padding:"6px 12px",background:accent,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✓ Enregistrer</button>
@@ -1871,7 +1864,7 @@ function FeedbackModal({ feedbackItems, setFeedbackItems, userId, accent, th, la
     setTimeout(() => setSent(false), 2500);
     if (userId) {
       try {
-        await addDoc(collection(db, "feedbacks"), { userId, type: feedbackType, text, createdAt: serverTimestamp() });
+        await supabase.from("feedbacks").insert({ user_id: userId, type: feedbackType, text });
       } catch (err) {
         console.error("Feedback save error:", err);
       }
@@ -1974,6 +1967,13 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   const [widgets, setWidgets] = useState(() => ls.widgets || ["objectives", "weekMoods", "streaks", "aiInsight"]);
   const [journalEntries, setJournalEntries] = useState(() => ls.journalEntries || []);
   const [roadmap, setRoadmap] = useState(INIT_ROADMAP);
+
+  useEffect(() => {
+    supabase.from("roadmap").select("id,title,description,status,votes").order("created_at").then(({ data: rows }) => {
+      if (rows && rows.length) setRoadmap(rows.map(r => ({ ...r, desc: r.description })));
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [feedbackItems, setFeedbackItems] = useState(() => ls.feedbackItems || []);
   const [showAd, setShowAd] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -2017,45 +2017,34 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     lsSet(`${lsKey}_days`, data);
   }, [lsKey, userId, data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Firestore: load all user data on mount ──────────────────────────────────
+  // ── Supabase: load all user data on mount ───────────────────────────────────
   useEffect(() => {
     if (!userId) { fsLoaded.current = true; return; }
     const load = async () => {
       try {
-        const [prefsSnap, objSnap, journalSnap, daysSnap] = await Promise.all([
-          getDoc(doc(db, "users", userId, "settings", "prefs")),
-          getDoc(doc(db, "users", userId, "settings", "objectives")),
-          getDoc(doc(db, "users", userId, "settings", "journal")),
-          getDoc(doc(db, "users", userId, "settings", "days")),
-        ]);
-        if (prefsSnap.exists()) {
-          const p = prefsSnap.data();
-          if (p.lang) setLang(p.lang);
+        const { data: p } = await supabase
+          .from("profiles")
+          .select("language,theme,accent,gender,notifications,reminder_time,first_name,last_name,moods,trackers,widgets,objectives,journal_entries,days_data")
+          .eq("id", userId)
+          .single();
+        if (p) {
+          if (p.language) setLang(p.language);
           if (p.theme) setTheme(p.theme);
           if (p.accent) setAccent(p.accent);
           if (p.gender) setGender(p.gender);
           if (typeof p.notifications === "boolean") setNotifications(p.notifications);
-          if (p.reminderTime) setReminderTime(p.reminderTime);
-          if (p.firstName) setFirstName(p.firstName);
-          if (p.lastName !== undefined) setLastName(p.lastName);
+          if (p.reminder_time) setReminderTime(p.reminder_time);
+          if (p.first_name) setFirstName(p.first_name);
+          if (p.last_name !== undefined) setLastName(p.last_name ?? "");
           if (Array.isArray(p.moods) && p.moods.length) setMoods(p.moods);
           if (Array.isArray(p.trackers) && p.trackers.length) setTrackers(p.trackers);
           if (Array.isArray(p.widgets) && p.widgets.length) setWidgets(p.widgets);
-        }
-        if (objSnap.exists()) {
-          const items = objSnap.data().items;
-          if (Array.isArray(items)) setObjectives(items);
-        }
-        if (journalSnap.exists()) {
-          const entries = journalSnap.data().entries;
-          if (Array.isArray(entries)) setJournalEntries(entries);
-        }
-        if (daysSnap.exists()) {
-          const saved = daysSnap.data().data;
-          if (saved && typeof saved === "object") setData(saved);
+          if (Array.isArray(p.objectives) && p.objectives.length) setObjectives(p.objectives);
+          if (Array.isArray(p.journal_entries) && p.journal_entries.length) setJournalEntries(p.journal_entries);
+          if (p.days_data && typeof p.days_data === "object" && Object.keys(p.days_data).length) setData(p.days_data);
         }
       } catch (err) {
-        console.error("Firestore load error:", err);
+        console.error("Supabase load error:", err);
       } finally {
         fsLoaded.current = true;
       }
@@ -2063,7 +2052,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     load();
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Firestore: debounced save whenever any key state changes ────────────────
+  // ── Supabase: debounced save whenever any key state changes ─────────────────
   const stateSnap = useRef({});
   stateSnap.current = { lang, theme, accent, gender, notifications, reminderTime, firstName, lastName, moods, trackers, widgets, objectives, journalEntries, data };
 
@@ -2073,18 +2062,25 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     saveTimer.current = setTimeout(async () => {
       const s = stateSnap.current;
       try {
-        await Promise.all([
-          setDoc(doc(db, "users", userId, "settings", "prefs"), {
-            lang: s.lang, theme: s.theme, accent: s.accent, gender: s.gender,
-            notifications: s.notifications, reminderTime: s.reminderTime,
-            firstName: s.firstName, lastName: s.lastName, moods: s.moods, trackers: s.trackers, widgets: s.widgets,
-          }),
-          setDoc(doc(db, "users", userId, "settings", "objectives"), { items: s.objectives }),
-          setDoc(doc(db, "users", userId, "settings", "journal"), { entries: s.journalEntries }),
-          setDoc(doc(db, "users", userId, "settings", "days"), { data: s.data }),
-        ]);
+        await supabase.from("profiles").upsert({
+          id: userId,
+          language: s.lang,
+          theme: s.theme,
+          accent: s.accent,
+          gender: s.gender,
+          notifications: s.notifications,
+          reminder_time: s.reminderTime,
+          first_name: s.firstName,
+          last_name: s.lastName,
+          moods: s.moods,
+          trackers: s.trackers,
+          widgets: s.widgets,
+          objectives: s.objectives,
+          journal_entries: s.journalEntries,
+          days_data: s.data,
+        });
       } catch (err) {
-        console.error("Firestore save error:", err);
+        console.error("Supabase save error:", err);
       }
     }, 1500);
   }, [userId]);
@@ -2092,18 +2088,20 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   useEffect(() => { scheduleSave(); },
     [lang, theme, accent, gender, notifications, reminderTime, firstName, lastName, moods, trackers, widgets, objectives, journalEntries, data, scheduleSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Flush pending Firestore save before page unloads to avoid data loss
+  // Flush pending Supabase save before page unloads to avoid data loss
   useEffect(() => {
     const flush = () => {
       if (!saveTimer.current || !userId || !fsLoaded.current) return;
       clearTimeout(saveTimer.current);
       const s = stateSnap.current;
-      const payload = JSON.stringify({
-        prefs: { lang: s.lang, theme: s.theme, accent: s.accent, gender: s.gender, notifications: s.notifications, reminderTime: s.reminderTime, firstName: s.firstName, lastName: s.lastName, moods: s.moods, trackers: s.trackers, widgets: s.widgets },
-        objectives: s.objectives,
-        journal: s.journalEntries,
-      });
-      navigator.sendBeacon(`/__/firebase/session`, payload);
+      supabase.from("profiles").upsert({
+        id: userId,
+        language: s.lang, theme: s.theme, accent: s.accent, gender: s.gender,
+        notifications: s.notifications, reminder_time: s.reminderTime,
+        first_name: s.firstName, last_name: s.lastName,
+        moods: s.moods, trackers: s.trackers, widgets: s.widgets,
+        objectives: s.objectives, journal_entries: s.journalEntries, days_data: s.data,
+      }).then(() => {}).catch(() => {});
     };
     window.addEventListener("beforeunload", flush);
     return () => window.removeEventListener("beforeunload", flush);
