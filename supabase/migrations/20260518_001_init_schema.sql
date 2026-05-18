@@ -1,6 +1,3 @@
--- Extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Table profiles
 CREATE TABLE public.profiles (
   id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -17,7 +14,7 @@ CREATE TABLE public.profiles (
 
 -- Table daily_snapshots
 CREATE TABLE public.daily_snapshots (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id           UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   date              DATE NOT NULL,
   mood_morning      SMALLINT CHECK (mood_morning BETWEEN 1 AND 5),
@@ -40,7 +37,7 @@ CREATE TABLE public.daily_snapshots (
 
 -- Table trackers
 CREATE TABLE public.trackers (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   slug        TEXT NOT NULL,
   label       TEXT NOT NULL,
@@ -54,7 +51,7 @@ CREATE TABLE public.trackers (
 
 -- Table tracker_entries
 CREATE TABLE public.tracker_entries (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   snapshot_id UUID NOT NULL REFERENCES public.daily_snapshots(id) ON DELETE CASCADE,
   user_id     UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   tracker_id  UUID NOT NULL REFERENCES public.trackers(id) ON DELETE CASCADE,
@@ -66,7 +63,7 @@ CREATE TABLE public.tracker_entries (
 
 -- Table objectives
 CREATE TABLE public.objectives (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title        TEXT NOT NULL,
   type         TEXT NOT NULL CHECK (type IN ('checklist','value','counter')),
@@ -80,7 +77,7 @@ CREATE TABLE public.objectives (
 
 -- Table pulse_log
 CREATE TABLE public.pulse_log (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id          UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   trigger_type     TEXT NOT NULL,
   notif_sent_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -91,7 +88,7 @@ CREATE TABLE public.pulse_log (
 
 -- Table journal_entries
 CREATE TABLE public.journal_entries (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   date            DATE NOT NULL,
   mode            TEXT NOT NULL CHECK (mode IN ('journal','flux')),
