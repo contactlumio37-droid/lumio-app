@@ -1,28 +1,25 @@
-import { useProfile } from "../hooks/useProfile";
-import { ROLES } from "../context/AuthContext";
+import { useAuthSupabase } from "../context/AuthContext.tsx";
 import LumioApp from "../LumioApp";
 
-const ROLE_LABEL = {
-  [ROLES.FREE]:  { label: "Gratuit", color: "#6b7280" },
-  [ROLES.PAID]:  { label: "Premium", color: "#7c3aed" },
-  [ROLES.ADMIN]: { label: "Admin",   color: "#b91c1c" },
-};
-
 export function Home() {
-  const { user, role, logout, deleteAccount } = useProfile();
-  const badge = ROLE_LABEL[role];
+  const { user, profile, isPaid, isAdmin, signOut, deleteAccount } = useAuthSupabase();
+
+  const role = isAdmin ? "admin" : isPaid ? "paid" : "free";
+  const badgeLabel = isAdmin ? "Admin" : isPaid ? "Premium" : "Gratuit";
+  const badgeColor = isAdmin ? "#b91c1c" : isPaid ? "#7c3aed" : "#6b7280";
+  const displayName = profile?.username || user?.user_metadata?.full_name || "";
 
   return (
     <div style={{ minHeight: "100vh", fontFamily: "sans-serif" }}>
       <LumioApp
-        userId={user.uid}
+        userId={user.id}
         userEmail={user.email}
-        displayName={user.displayName}
+        displayName={displayName}
         role={role}
-        onLogout={logout}
-        onDeleteAccount={deleteAccount}
-        badgeLabel={badge.label}
-        badgeColor={badge.color}
+        onLogout={signOut}
+        onDeleteAccount={() => deleteAccount(user.id)}
+        badgeLabel={badgeLabel}
+        badgeColor={badgeColor}
       />
     </div>
   );
