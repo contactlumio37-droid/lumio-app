@@ -1,8 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { db, auth } from "./firebase";
-import { deleteUser } from "firebase/auth";
+import { db } from "./firebase";
 import { doc, setDoc, collection, addDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp, limit } from "firebase/firestore";
 import { PrivacyPolicyModal } from "./components/PrivacyPolicy";
 
@@ -2117,7 +2116,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     return () => window.removeEventListener("lumio:privacy", handler);
   }, []);
 
-  // Hard-delete all user data then remove the Firebase Auth account
+  // Hard-delete all user data then remove the Supabase Auth account
   const handleDeleteAccount = useCallback(async () => {
     const t = I18N[lang] || I18N.fr;
     const confirmed = window.confirm(
@@ -2127,37 +2126,20 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     if (!confirmed || !userId) return;
 
     try {
-      // Delete Firestore subcollections first
-      const subcolls = ["days", "journal", "settings"];
-      for (const sub of subcolls) {
-        const snap = await getDocs(collection(db, "users", userId, sub));
-        await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
-      }
-      await deleteDoc(doc(db, "users", userId));
-      // Clear local caches
       try {
         localStorage.removeItem(`lumio_${userId}`);
         localStorage.removeItem(`lumio_${userId}_days`);
       } catch {}
-      // Delete Firebase Auth user (requires recent login)
-      if (auth.currentUser) await deleteUser(auth.currentUser);
+      // deleteAccount supprime toutes les tables Supabase + auth via Edge Function
       if (onDeleteAccount) await onDeleteAccount();
     } catch (err) {
-      if (err?.code === "auth/requires-recent-login") {
-        alert(
-          (I18N[lang] || I18N.fr).deleteAccountReauth ||
-            "Pour supprimer votre compte, veuillez vous reconnecter d'abord."
-        );
-        onLogout();
-      } else {
-        console.error("Delete account error:", err);
-        alert(
-          (I18N[lang] || I18N.fr).deleteAccountError ||
-            "Erreur lors de la suppression. Réessayez."
-        );
-      }
+      console.error("Delete account error:", err);
+      alert(
+        (I18N[lang] || I18N.fr).deleteAccountError ||
+          "Erreur lors de la suppression. Réessayez."
+      );
     }
-  }, [userId, lang, onDeleteAccount, onLogout]);
+  }, [userId, lang, onDeleteAccount]);
 
   const rootStyle = {
     minHeight: "100vh",

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { AuthProvider } from "./context/AuthContext";
-import { useProfile } from "./hooks/useProfile";
+import { AuthProviderSupabase, useAuthSupabase } from "./context/AuthContext.tsx";
 import { LoginForm } from "./components/LoginForm";
 import { Home } from "./components/Home";
 import { GdprBanner } from "./components/GdprBanner";
@@ -8,7 +7,7 @@ import { PrivacyPolicyModal } from "./components/PrivacyPolicy";
 import { enableAnalytics, disableAnalytics } from "./firebase";
 
 function AppContent() {
-  const { user } = useProfile();
+  const { user } = useAuthSupabase();
   const [showPrivacy, setShowPrivacy] = useState(false);
 
   // Listen for privacy modal requests from any part of the app (GDPR banner, settings)
@@ -39,9 +38,9 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
+    <AuthProviderSupabase>
       <AppContent />
-    </AuthProvider>
+    </AuthProviderSupabase>
   );
 }
 
