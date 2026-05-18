@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, setAnalyticsCollectionEnabled } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -14,7 +14,20 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Analytics is disabled by default until the user gives GDPR consent.
+// Call enableAnalytics() after consent is granted.
 const analytics = getAnalytics(app);
+setAnalyticsCollectionEnabled(analytics, false);
+
+export function enableAnalytics() {
+  setAnalyticsCollectionEnabled(analytics, true);
+}
+
+export function disableAnalytics() {
+  setAnalyticsCollectionEnabled(analytics, false);
+}
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 

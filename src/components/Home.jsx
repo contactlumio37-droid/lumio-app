@@ -9,7 +9,7 @@ const ROLE_LABEL = {
 };
 
 export function Home() {
-  const { user, role, logout } = useProfile();
+  const { user, role, logout, deleteAccount } = useProfile();
   const badge = ROLE_LABEL[role];
 
   return (
@@ -20,6 +20,7 @@ export function Home() {
         displayName={user.displayName}
         role={role}
         onLogout={logout}
+        onDeleteAccount={deleteAccount}
         badgeLabel={badge.label}
         badgeColor={badge.color}
       />

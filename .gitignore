@@ -12,3 +12,7 @@ build/
 
 # Misc
 .DS_Store
+
+# Mobile Firebase credentials — NEVER commit
+android/app/google-services.json
+ios/GoogleService-Info.plist

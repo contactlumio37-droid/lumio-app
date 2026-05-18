@@ -1,5 +1,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
+  deleteUser,
+} from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { initRevenueCat, isPaid } from "../revenuecat";
@@ -7,6 +16,8 @@ import { initRevenueCat, isPaid } from "../revenuecat";
 // Hiérarchie des rôles : admin > paid > free
 export const ROLES = { FREE: "free", PAID: "paid", ADMIN: "admin" };
 
+// VITE_ADMIN_UID is only used to bootstrap the first admin document.
+// Authorization is enforced by the Firestore `role` field server-side.
 const ADMIN_UID = import.meta.env.VITE_ADMIN_UID;
 
 const AuthContext = createContext(null);
@@ -26,12 +37,10 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        // Créer ou mettre à jour le profil Firestore
         const profileRef = doc(db, "users", firebaseUser.uid);
         const profileSnap = await getDoc(profileRef);
 
         if (!profileSnap.exists()) {
-          // Nouvel utilisateur : déterminer le rôle et le persister
           let newRole = ROLES.FREE;
           if (ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
             newRole = ROLES.ADMIN;
@@ -54,17 +63,14 @@ export function AuthProvider({ children }) {
           });
           setRole(newRole);
         } else {
-          // Utilisateur existant : lire le rôle depuis Firestore
           const storedRole = profileSnap.data().role;
 
           if (storedRole === ROLES.ADMIN) {
             setRole(ROLES.ADMIN);
           } else if (!storedRole && ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
-            // Migration : doc existant sans champ role, et c'est l'admin
             await updateDoc(profileRef, { role: ROLES.ADMIN });
             setRole(ROLES.ADMIN);
           } else {
-            // Vérifier RevenueCat au cas où l'abonnement a changé
             try {
               await initRevenueCat(firebaseUser.uid);
               const paid = await isPaid();
@@ -81,7 +87,6 @@ export function AuthProvider({ children }) {
         }
       } catch (err) {
         console.error("Erreur Firestore lors du chargement du profil :", err);
-        // Si les règles Firestore bloquent, on détermine le rôle via l'UID admin
         if (ADMIN_UID && firebaseUser.uid === ADMIN_UID) {
           setRole(ROLES.ADMIN);
         } else {
@@ -109,8 +114,20 @@ export function AuthProvider({ children }) {
 
   const logout = () => signOut(auth);
 
+  const resetPassword = (email) => sendPasswordResetEmail(auth, email);
+
+  // Deletes the Firebase Auth account. Firestore cleanup is handled
+  // by the caller before invoking this, since it requires multiple batch deletes.
+  const deleteAccount = async () => {
+    if (!auth.currentUser) throw new Error("No authenticated user");
+    await deleteUser(auth.currentUser);
+    // onAuthStateChanged fires and resets user/role state automatically
+  };
+
   return (
-    <AuthContext.Provider value={{ user, role, loading, login, register, loginWithGoogle, logout }}>
+    <AuthContext.Provider
+      value={{ user, role, loading, login, register, loginWithGoogle, logout, resetPassword, deleteAccount }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );
