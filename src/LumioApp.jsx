@@ -9,6 +9,8 @@ import { useCompanion } from "./hooks/useCompanion";
 import { CompanionDisplay } from "./components/companion/CompanionDisplay";
 import { CompanionSelector } from "./components/companion/CompanionSelector";
 import { CompanionBadge } from "./components/companion/CompanionBadge";
+import { usePulse } from "./hooks/usePulse";
+import { PulseNotice } from "./components/pulse/PulseNotice";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -1990,6 +1992,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
 
   const [companionAnimal, setCompanionAnimal] = useState(null);
   const companion = useCompanion(userId, companionAnimal, lang);
+  const pulse = usePulse(companion.snapshot, userId);
 
   const [feedbackItems, setFeedbackItems] = useState(() => ls.feedbackItems || []);
   const [showAd, setShowAd] = useState(false);
@@ -2225,6 +2228,16 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
                 assetPath={companion.assetPath}
                 streak={companion.streak}
                 accent={accent}
+              />
+            )}
+            {pulse.active && pulse.triggerType && (
+              <PulseNotice
+                triggerType={pulse.triggerType}
+                animal={companion.animal}
+                accent={accent}
+                lang={lang}
+                onTalk={() => { pulse.dismiss(); setTab("journal"); }}
+                onDismiss={pulse.dismiss}
               />
             )}
             {checkoutBtn}
