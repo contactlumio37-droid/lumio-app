@@ -52,6 +52,34 @@ export async function saveCheckout(userId: string, data: CheckoutData): Promise<
     .upsert(payload, { onConflict: 'user_id,date' })
 
   if (error) throw new Error(`Checkout save failed: ${error.message}`)
+
+  await scheduleMorningNotification(userId, data.mood_evening)
+}
+
+async function scheduleMorningNotification(
+  userId: string,
+  moodEvening: 1 | 2 | 3 | 4 | 5,
+): Promise<void> {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(8, 0, 0, 0)
+
+  let body: string
+  if (moodEvening >= 4) {
+    body = "Belle nuit ! Comment tu attaques cette journée ?"
+  } else if (moodEvening >= 2) {
+    body = "Pas le repos idéal. Prends soin de toi aujourd'hui."
+  } else {
+    body = "Nuit difficile... Tes deux choses pour aujourd'hui t'attendent."
+  }
+
+  // Fire and forget — non-blocking
+  supabase.from('scheduled_notifications').insert({
+    user_id: userId,
+    send_at: tomorrow.toISOString(),
+    title: 'Lumio 🌅',
+    body,
+  }).then(() => {}).catch(() => {})
 }
 
 export async function getTodaySnapshot(userId: string): Promise<DailySnapshot | null> {

@@ -22,6 +22,7 @@ export interface Database {
           plan: 'free' | 'plus'
           revenuecat_id: string | null
           onboarding_done: boolean
+          fcm_token: string | null
           created_at: string
           updated_at: string
         }
@@ -34,6 +35,7 @@ export interface Database {
           plan?: 'free' | 'plus'
           revenuecat_id?: string | null
           onboarding_done?: boolean
+          fcm_token?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -46,6 +48,7 @@ export interface Database {
           plan?: 'free' | 'plus'
           revenuecat_id?: string | null
           onboarding_done?: boolean
+          fcm_token?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -275,6 +278,38 @@ export interface Database {
           content?: string | null
           emotion_context?: string | null
           word_count?: number | null
+          created_at?: string
+        }
+      }
+      scheduled_notifications: {
+        Row: {
+          id: string
+          user_id: string
+          send_at: string
+          title: string
+          body: string
+          sent: boolean
+          sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          send_at: string
+          title: string
+          body: string
+          sent?: boolean
+          sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          send_at?: string
+          title?: string
+          body?: string
+          sent?: boolean
+          sent_at?: string | null
           created_at?: string
         }
       }
