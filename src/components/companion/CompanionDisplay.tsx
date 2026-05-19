@@ -1,95 +1,67 @@
-import type { Animal, CompanionState } from '../../services/companionService'
+import type { Animal, CompanionState, CompanionConfig } from '../../services/companionService'
+import { getCompanionConfig } from '../../services/companionService'
+import { CompanionAvatar }  from './CompanionAvatar'
+import { CompanionMessage } from './CompanionMessage'
 
 interface Props {
-  animal: Animal
-  state: CompanionState
-  message: string
-  assetPath: string
-  streak: number
-  accent: string
+  animal:    Animal
+  state:     CompanionState
+  message:   string
+  assetPath: string  // conservé pour compatibilité ascendante
+  streak:    number
+  accent:    string  // conservé pour compatibilité ascendante
+  userId?:   string
+  lang?:     string
 }
 
-const ANIMAL_NAMES: Record<Animal, string> = {
-  otter: 'Loutre',
-  hedgehog: 'Hérisson',
-  fox: 'Renard',
-  koala: 'Koala',
-  axolotl: 'Axolotl',
-}
+export function CompanionDisplay({
+  animal,
+  state,
+  message,
+  streak,
+  userId,
+  lang = 'fr',
+}: Props) {
+  const config: CompanionConfig = getCompanionConfig(animal, state, lang, streak, userId)
+  // Override message avec celui passé en prop (déjà calculé par useCompanion)
+  const displayConfig: CompanionConfig = { ...config, message }
 
-export function CompanionDisplay({ animal, state, message, assetPath, streak, accent }: Props) {
   return (
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 12,
-        padding: '20px 16px',
-        textAlign: 'center',
+        display:        'flex',
+        flexDirection:  'column',
+        alignItems:     'center',
+        gap:             16,
+        padding:        '20px 16px',
       }}
     >
-      <div style={{ position: 'relative', display: 'inline-block' }}>
-        <img
-          src={assetPath}
-          alt={ANIMAL_NAMES[animal]}
-          width={120}
-          height={120}
-          onError={e => {
-            ;(e.target as HTMLImageElement).style.display = 'none'
-          }}
-          style={{
-            objectFit: 'contain',
-            filter: state === 'sleeping' ? 'brightness(0.7)' : 'none',
-            transition: 'filter 0.5s',
-          }}
-        />
-        {streak >= 7 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: -6,
-              right: -6,
-              background: accent,
-              borderRadius: '50%',
-              width: 28,
-              height: 28,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 13,
-              fontWeight: 800,
-              color: '#fff',
-            }}
-          >
-            {streak}
-          </div>
-        )}
-      </div>
-
-      <div
-        style={{
-          fontSize: 14,
-          opacity: 0.75,
-          lineHeight: 1.5,
-          maxWidth: 260,
-          fontStyle: 'italic',
-        }}
-      >
-        {message}
-      </div>
+      <CompanionAvatar config={displayConfig} size="lg" />
+      <CompanionMessage config={displayConfig} />
 
       {streak > 0 && (
         <div
           style={{
-            fontSize: 12,
-            opacity: 0.45,
-            display: 'flex',
+            display:    'inline-flex',
             alignItems: 'center',
-            gap: 4,
+            gap:         6,
+            padding:    '4px 12px',
+            borderRadius: 50,
+            background:  'rgba(245,158,11,0.1)',
+            border:      '1px solid rgba(245,158,11,0.2)',
           }}
         >
-          🔥 {streak} jour{streak > 1 ? 's' : ''} de suite
+          <span style={{ fontSize: 14 }}>🔥</span>
+          <span
+            style={{
+              fontFamily: 'Syne, sans-serif',
+              fontWeight: 700,
+              fontSize:   12,
+              color:     '#F59E0B',
+            }}
+          >
+            {streak} jour{streak > 1 ? 's' : ''} de suite
+          </span>
         </div>
       )}
     </div>
