@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { supabase } from "./lib/supabase";
+import { getTodaySnapshot } from "./services/checkoutService";
+import { CheckoutScreen } from "./components/checkout/CheckoutScreen";
 import { PrivacyPolicyModal } from "./components/PrivacyPolicy";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
@@ -1974,6 +1976,14 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [checkoutDone, setCheckoutDone] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    getTodaySnapshot(userId).then(snap => {
+      if (snap?.checkout_done) setCheckoutDone(true);
+    }).catch(() => {});
+  }, [userId]);
+
   const [feedbackItems, setFeedbackItems] = useState(() => ls.feedbackItems || []);
   const [showAd, setShowAd] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -2162,25 +2172,61 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     ...(role === "admin" ? [{ id: "admin", label: "Admin", icon: "🔧" }] : []),
   ];
 
+  const checkoutBtn = !checkoutDone ? (
+    <button
+      onClick={() => setTab("checkout")}
+      style={{
+        width: "100%", padding: "14px", marginBottom: 16,
+        borderRadius: 16, border: "none",
+        background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
+        color: "#fff", fontWeight: 800, fontSize: 15,
+        cursor: "pointer", fontFamily: "inherit",
+        boxShadow: `0 4px 20px ${accent}44`,
+      }}
+    >
+      🌙 Checkout du soir
+    </button>
+  ) : (
+    <div style={{
+      width: "100%", padding: "12px 16px", marginBottom: 16,
+      borderRadius: 16, border: `1px solid ${accent}33`,
+      color: accent, fontWeight: 700, fontSize: 14,
+      textAlign: "center", opacity: 0.7,
+    }}>
+      ✓ Soirée posée
+    </div>
+  );
+
   return (
     <div style={rootStyle}>
       <div style={pageWrapStyle}>
         {tab === "home" && (
-          <Dashboard
-            data={data}
-            setData={setData}
-            objectives={objectives}
-            setObjectives={setObjectives}
-            widgets={widgets}
-            setWidgets={setWidgets}
-            trackers={trackers}
-            moods={moods}
+          <>
+            {checkoutBtn}
+            <Dashboard
+              data={data}
+              setData={setData}
+              objectives={objectives}
+              setObjectives={setObjectives}
+              widgets={widgets}
+              setWidgets={setWidgets}
+              trackers={trackers}
+              moods={moods}
+              accent={accent}
+              firstName={firstName}
+              plan={plan}
+              th={th}
+              lang={lang}
+              showAdPopup={showAdPopup}
+            />
+          </>
+        )}
+
+        {tab === "checkout" && (
+          <CheckoutScreen
             accent={accent}
-            firstName={firstName}
-            plan={plan}
-            th={th}
             lang={lang}
-            showAdPopup={showAdPopup}
+            onComplete={() => { setCheckoutDone(true); setTab("home"); }}
           />
         )}
 

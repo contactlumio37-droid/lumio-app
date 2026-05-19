@@ -69,6 +69,7 @@ export interface Database {
           decharge_length: number | null
           pulse_triggered: boolean
           pulse_type: string | null
+          joy_note: string | null
           created_at: string
         }
         Insert: {
@@ -89,6 +90,7 @@ export interface Database {
           decharge_length?: number | null
           pulse_triggered?: boolean
           pulse_type?: string | null
+          joy_note?: string | null
           created_at?: string
         }
         Update: {
@@ -109,6 +111,7 @@ export interface Database {
           decharge_length?: number | null
           pulse_triggered?: boolean
           pulse_type?: string | null
+          joy_note?: string | null
           created_at?: string
         }
       }
