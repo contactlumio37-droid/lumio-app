@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import "./styles/lumio-animations.css";
 
 // Firebase is initialized via src/firebase.js
 import "./firebase";
