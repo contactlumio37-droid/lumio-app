@@ -1,21 +1,9 @@
-import { useProfile } from "../hooks/useProfile";
-import { ROLES } from "../context/AuthContext";
+import { useAuthSupabase } from "../context/AuthContext.tsx";
 
-const ROLE_RANK = { [ROLES.FREE]: 0, [ROLES.PAID]: 1, [ROLES.ADMIN]: 2 };
+const ROLE_RANK = { free: 0, paid: 1, admin: 2 };
 
-/**
- * Affiche les enfants uniquement si l'utilisateur a le rôle requis (ou supérieur).
- *
- * Utilisation :
- *   <ProfileGate requiredRole="paid">...</ProfileGate>
- *   <ProfileGate requiredRole="admin">...</ProfileGate>
- */
-export function ProfileGate({ requiredRole = ROLES.FREE, fallback = null, children }) {
-  const { role } = useProfile();
-
-  if (ROLE_RANK[role] >= ROLE_RANK[requiredRole]) {
-    return children;
-  }
-
-  return fallback;
+export function ProfileGate({ requiredRole = "free", fallback = null, children }) {
+  const { isPaid, isAdmin } = useAuthSupabase();
+  const role = isAdmin ? "admin" : isPaid ? "paid" : "free";
+  return ROLE_RANK[role] >= ROLE_RANK[requiredRole] ? children : fallback;
 }

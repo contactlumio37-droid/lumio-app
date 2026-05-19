@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useProfile } from "../hooks/useProfile";
+import { useAuthSupabase } from "../context/AuthContext.tsx";
 
 // Minimal i18n for the login screen (before user language preference is known)
 const LOGIN_I18N = {
@@ -155,31 +155,24 @@ function detectLang() {
   }
 }
 
-const FIREBASE_ERRORS = {
-  "auth/invalid-email": { fr: "Adresse email invalide.", en: "Invalid email address." },
-  "auth/user-not-found": { fr: "Aucun compte trouvé avec cet email.", en: "No account found with this email." },
-  "auth/wrong-password": { fr: "Mot de passe incorrect.", en: "Incorrect password." },
-  "auth/email-already-in-use": { fr: "Cet email est déjà utilisé.", en: "This email is already in use." },
-  "auth/weak-password": { fr: "Le mot de passe doit contenir au moins 6 caractères.", en: "Password must be at least 6 characters." },
-  "auth/too-many-requests": { fr: "Trop de tentatives. Réessayez dans quelques minutes.", en: "Too many attempts. Try again in a few minutes." },
-  "auth/network-request-failed": { fr: "Erreur réseau. Vérifiez votre connexion.", en: "Network error. Check your connection." },
-  "auth/popup-closed-by-user": { fr: "La fenêtre de connexion a été fermée.", en: "Sign-in window was closed." },
-  "auth/cancelled-popup-request": null,
-  "auth/invalid-credential": { fr: "Email ou mot de passe incorrect.", en: "Incorrect email or password." },
-};
+const SUPABASE_ERRORS = [
+  { match: "Invalid login credentials",           fr: "Email ou mot de passe incorrect.",                        en: "Incorrect email or password." },
+  { match: "User already registered",             fr: "Cet email est déjà utilisé.",                             en: "This email is already in use." },
+  { match: "Password should be at least",         fr: "Le mot de passe doit contenir au moins 6 caractères.",   en: "Password must be at least 6 characters." },
+  { match: "Email not confirmed",                 fr: "Veuillez confirmer votre email.",                         en: "Please confirm your email." },
+  { match: "popup_closed_by_user",                fr: "La fenêtre de connexion a été fermée.",                   en: "Sign-in window was closed." },
+  { match: "too many",                            fr: "Trop de tentatives. Réessayez dans quelques minutes.",    en: "Too many attempts. Try again in a few minutes." },
+];
 
 function formatError(err, lang) {
-  const code = err?.code;
-  if (code && FIREBASE_ERRORS[code] !== undefined) {
-    const msg = FIREBASE_ERRORS[code];
-    if (!msg) return null;
-    return msg[lang] || msg.en;
-  }
-  return err?.message || "Une erreur est survenue. Réessayez.";
+  const msg = err?.message || "";
+  const entry = SUPABASE_ERRORS.find(e => msg.toLowerCase().includes(e.match.toLowerCase()));
+  if (entry) return entry[lang] || entry.en;
+  return msg || "Une erreur est survenue. Réessayez.";
 }
 
 export function LoginForm() {
-  const { login, register, loginWithGoogle, resetPassword } = useProfile();
+  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuthSupabase();
   const lang = useMemo(detectLang, []);
   const t = LOGIN_I18N[lang] || LOGIN_I18N.en;
 
@@ -198,9 +191,9 @@ export function LoginForm() {
     setLoading(true);
     try {
       if (isRegister) {
-        await register(email, password);
+        await signUp(email, password);
       } else {
-        await login(email, password);
+        await signIn(email, password);
       }
     } catch (err) {
       const msg = formatError(err, lang);
@@ -214,7 +207,7 @@ export function LoginForm() {
     setError(null);
     setGoogleLoading(true);
     try {
-      await loginWithGoogle();
+      await signInWithGoogle();
     } catch (err) {
       const msg = formatError(err, lang);
       if (msg) setError(msg);
