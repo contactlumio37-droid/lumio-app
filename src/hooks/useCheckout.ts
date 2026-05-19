@@ -1,0 +1,117 @@
+import { useState, useCallback } from 'react'
+import {
+  saveCheckout,
+  getTodaySnapshot,
+  type CheckoutData,
+  type DailySnapshot,
+} from '../services/checkoutService'
+
+export type CheckoutStep = 1 | 2 | 3 | 4 | 5
+
+interface CheckoutState {
+  step: CheckoutStep
+  data: Partial<CheckoutData>
+  todaySnapshot: DailySnapshot | null
+  submitting: boolean
+  error: string | null
+}
+
+export function useCheckout(userId: string) {
+  const [state, setState] = useState<CheckoutState>({
+    step: 1,
+    data: {},
+    todaySnapshot: null,
+    submitting: false,
+    error: null,
+  })
+
+  const setMood = useCallback(
+    (mood: 1 | 2 | 3 | 4 | 5, emotion: CheckoutData['emotion_primary'], intensity: 1 | 2 | 3 | 4 | 5) => {
+      setState(s => ({
+        ...s,
+        data: { ...s.data, mood_evening: mood, emotion_primary: emotion, emotion_intensity: intensity },
+        step: (s.step === 1 ? 2 : s.step) as CheckoutStep,
+      }))
+    },
+    [],
+  )
+
+  const setDecharge = useCallback((text: string) => {
+    setState(s => ({
+      ...s,
+      data: { ...s.data, decharge_text: text, decharge_length: text.length },
+    }))
+  }, [])
+
+  const setJoyNote = useCallback((note: string) => {
+    setState(s => ({ ...s, data: { ...s.data, joy_note: note } }))
+  }, [])
+
+  const setTodos = useCallback((todo1: string, todo2: string) => {
+    setState(s => ({
+      ...s,
+      data: { ...s.data, tomorrow_todo_1: todo1, tomorrow_todo_2: todo2 },
+    }))
+  }, [])
+
+  const goToStep = useCallback((step: CheckoutStep) => {
+    setState(s => ({ ...s, step }))
+  }, [])
+
+  const isEmotionStrong = useCallback((): boolean => {
+    const { emotion_primary, emotion_intensity } = state.data
+    if (!emotion_primary || emotion_primary === 'neutre') return false
+    return (emotion_intensity ?? 0) >= 3
+  }, [state.data])
+
+  const submit = useCallback(async (): Promise<void> => {
+    const { data } = state
+    if (!data.mood_evening || !data.emotion_primary || !data.emotion_intensity) {
+      setState(s => ({ ...s, error: 'Humeur requise pour terminer le checkout.' }))
+      return
+    }
+
+    setState(s => ({ ...s, submitting: true, error: null }))
+    try {
+      const now = new Date()
+      const checkoutTime = [now.getHours(), now.getMinutes(), now.getSeconds()]
+        .map(n => String(n).padStart(2, '0'))
+        .join(':')
+
+      await saveCheckout(userId, {
+        ...(data as CheckoutData),
+        checkout_done: true,
+        checkout_time: checkoutTime,
+      })
+
+      const snapshot = await getTodaySnapshot(userId)
+      setState(s => ({ ...s, step: 5, todaySnapshot: snapshot, submitting: false }))
+    } catch (err) {
+      setState(s => ({
+        ...s,
+        submitting: false,
+        error: err instanceof Error ? err.message : 'Erreur lors du checkout.',
+      }))
+    }
+  }, [state, userId])
+
+  const reset = useCallback(() => {
+    setState({ step: 1, data: {}, todaySnapshot: null, submitting: false, error: null })
+  }, [])
+
+  return {
+    step: state.step,
+    checkoutData: state.data,
+    todaySnapshot: state.todaySnapshot,
+    submitting: state.submitting,
+    error: state.error,
+    setMood,
+    setDecharge,
+    setJoyNote,
+    setTodos,
+    goToStep,
+    isEmotionStrong,
+    submit,
+    reset,
+  }
+}
