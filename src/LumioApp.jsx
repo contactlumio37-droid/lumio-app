@@ -11,6 +11,10 @@ import { CompanionSelector } from "./components/companion/CompanionSelector";
 import { CompanionBadge } from "./components/companion/CompanionBadge";
 import { usePulse } from "./hooks/usePulse";
 import { PulseNotice } from "./components/pulse/PulseNotice";
+import { usePlan } from "./hooks/usePlan";
+import { PaywallModal } from "./components/paywall/PaywallModal";
+import { PaywallBadge } from "./components/paywall/PaywallBadge";
+import { PlanComparison } from "./components/paywall/PlanComparison";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -896,8 +900,10 @@ function JoyInput({onAdd,accent,th,placeholder}){
 // ─── PAGES ────────────────────────────────────────────────────────────────────
 function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,trackers,moods,accent,firstName,plan,th,lang,showAdPopup}){
   const t=I18N[lang]||I18N.fr;
+  const isPlus=plan==="premium";
   const [configOpen,setConfigOpen]=useState(false);
   const [addOpen,setAddOpen]=useState(false);
+  const [paywallFeature,setPaywallFeature]=useState(null);
   const [form,setForm]=useState({title:"",type:"checklist",unit:"",target:"",initial:"",items:[""]});
   const [editDay,setEditDay]=useState(null);
   const last7=Array.from({length:7},(_,i)=>{const d=new Date(NOW);d.setDate(TODAY-(6-i));const wdNames={fr:["D","L","M","M","J","V","S"],en:["S","M","T","W","T","F","S"],es:["D","L","M","X","J","V","S"],de:["S","M","D","M","D","F","S"],it:["D","L","M","M","G","V","S"],pt:["D","S","T","Q","Q","S","S"]};const wd=d.getDay();return{label:(wdNames[lang]||wdNames.fr)[wd],entry:data[d.getMonth()]?.[d.getDate()],day:d.getDate(),month:d.getMonth()};});
@@ -922,6 +928,7 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
       obj={...base,target:parseInt(form.target)||10,count:0};
     }
 
+    if(!isPlus && objectives.length >= 2){ setPaywallFeature('objectives'); return; }
     setObjectives(os=>[...os,obj]);
     setAddOpen(false);
     setForm({title:"",type:"checklist",unit:"",target:"",initial:"",items:[""]});
@@ -939,7 +946,7 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
 
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
       {widgets.includes("objectives")&&(<div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><SLabel th={th}>🎯 {t.objectives}</SLabel><button onClick={()=>setAddOpen(!addOpen)} style={{background:"none",border:"none",color:accent,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}}>{t.addObj}</button></div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><SLabel th={th}>🎯 {t.objectives}</SLabel><button onClick={()=>{if(!isPlus&&objectives.length>=2){setPaywallFeature('objectives');return;}setAddOpen(!addOpen);}} style={{background:"none",border:"none",color:accent,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}}>{t.addObj}{!isPlus&&objectives.length>=2&&<> <PaywallBadge accent={accent}/></>}</button></div>
         {objectives.length===0&&!addOpen&&<Card th={th} style={{textAlign:"center",padding:24}}><div style={{fontSize:32,marginBottom:8}}>🎯</div><div style={{fontSize:13,color:th.text2,marginBottom:12}}>{t.noObj}</div><button onClick={()=>setAddOpen(true)} style={{padding:"8px 18px",background:accent,border:"none",borderRadius:10,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>{t.createFirstObj}</button></Card>}
         {objectives.map(o=><ObjCard key={o.id} obj={o} accent={accent} th={th} t={t} onUpdate={upd=>setObjectives(os=>os.map(x=>x.id===upd.id?upd:x))} onDelete={()=>setObjectives(os=>os.filter(x=>x.id!==o.id))}/>)}
 
@@ -983,11 +990,13 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
     </div>
 
     {editDay&&<DayModal day={editDay.day} month={editDay.month} year={CUR_Y} dayData={data[editDay.month]?.[editDay.day]} trackers={trackers} moods={moods} accent={accent} th={th} lang={lang} onSave={d=>saveDay(editDay.day,editDay.month,d)} onClose={()=>setEditDay(null)}/>}
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>setPaywallFeature(null)}/>}
   </div>);
 }
 
-function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,showAdPopup}){
+function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,isPlus,showAdPopup}){
   const t=I18N[lang]||I18N.fr;
+  const [paywallFeature,setPaywallFeature]=useState(null);
   const [editDay,setEditDay]=useState({day:TODAY,month:CUR_M});
   const dayData=data[editDay.month]?.[editDay.day]||{};
   const [catOpen,setCatOpen]=useState(false);
@@ -995,7 +1004,7 @@ function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,showAdPo
   const [customForm,setCustomForm]=useState({label:"",icon:"📌",type:"bool",color:"#7C9EFF"});
   const activeIds=trackers.map(tr=>tr.id);
   const saveDay=(day,month,d)=>{setData(prev=>({...prev,[month]:{...(prev[month]||{}),[day]:d}}));showAdPopup("save");};
-  const addCustomTracker=()=>{if(!customForm.label.trim())return;setTrackers(ts=>[...ts,{...customForm,id:"custom_"+Date.now()}]);setCustomForm({label:"",icon:"📌",type:"bool",color:"#7C9EFF"});setAddCustom(false);};
+  const addCustomTracker=()=>{if(!customForm.label.trim())return;if(!isPlus&&trackers.length>=3){setPaywallFeature('trackers');return;}setTrackers(ts=>[...ts,{...customForm,id:"custom_"+Date.now()}]);setCustomForm({label:"",icon:"📌",type:"bool",color:"#7C9EFF"});setAddCustom(false);};
   return(<div>
     <div style={{fontWeight:800,fontSize:17,color:th.text,marginBottom:2}}>{t.nav.entry}</div>
     <div style={{fontSize:11,color:th.text3,marginBottom:14}}>{fmtDate(editDay.day,editDay.month,CUR_Y,lang)}</div>
@@ -1033,7 +1042,7 @@ function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,showAdPo
       {catOpen&&<div style={{marginBottom:14,padding:10,background:th.bg3,borderRadius:12,border:`1px solid ${th.border}`}}>
         <SLabel th={th}>{t.catalogue}</SLabel>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
-          {TRACKER_CATALOGUE.map(tr=>(<button key={tr.id} onClick={()=>{if(activeIds.includes(tr.id))setTrackers(ts=>ts.filter(x=>x.id!==tr.id));else setTrackers(ts=>[...ts,tr]);}} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 10px",background:activeIds.includes(tr.id)?tr.color+"18":th.bg2,border:`1.5px solid ${activeIds.includes(tr.id)?tr.color:th.border}`,borderRadius:9,cursor:"pointer",color:activeIds.includes(tr.id)?tr.color:th.text2,fontFamily:"inherit",fontSize:11,fontWeight:activeIds.includes(tr.id)?700:400}}><span>{tr.icon}</span><span style={{flex:1,textAlign:"left"}}>{tr.label}</span>{activeIds.includes(tr.id)&&<span>✓</span>}</button>))}
+          {TRACKER_CATALOGUE.map(tr=>(<button key={tr.id} onClick={()=>{if(activeIds.includes(tr.id))setTrackers(ts=>ts.filter(x=>x.id!==tr.id));else{if(!isPlus&&trackers.length>=3){setPaywallFeature('trackers');return;}setTrackers(ts=>[...ts,tr]);}}} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 10px",background:activeIds.includes(tr.id)?tr.color+"18":th.bg2,border:`1.5px solid ${activeIds.includes(tr.id)?tr.color:th.border}`,borderRadius:9,cursor:"pointer",color:activeIds.includes(tr.id)?tr.color:th.text2,fontFamily:"inherit",fontSize:11,fontWeight:activeIds.includes(tr.id)?700:400}}><span>{tr.icon}</span><span style={{flex:1,textAlign:"left"}}>{tr.label}</span>{activeIds.includes(tr.id)&&<span>✓</span>}</button>))}
         </div>
         <div style={{borderTop:`1px solid ${th.border}`,paddingTop:10}}>
           <div style={{fontSize:11,color:th.text3,marginBottom:8,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>{t.customTracker}</div>
@@ -1070,14 +1079,16 @@ function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,showAdPo
       <textarea value={dayData.note||""} onChange={e=>saveDay(editDay.day,editDay.month,{...dayData,note:e.target.value})} placeholder={t.notePlaceholder} rows={3}
         style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:12,padding:"10px 14px",color:th.text,fontSize:13,fontFamily:"Georgia,serif",lineHeight:1.7,resize:"none",boxSizing:"border-box"}}/>
     </Card>
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>setPaywallFeature(null)}/>}
   </div>);
 }
 
-function Suivi({data,setData,trackers,moods,accent,th,lang}){
+function Suivi({data,setData,trackers,moods,accent,th,lang,isPlus}){
   const t=I18N[lang]||I18N.fr;
   const [view,setView]=useState("month");
   const [subview,setSubview]=useState("heatmap");
   const [month,setMonth]=useState(CUR_M);
+  const [paywallFeature,setPaywallFeature]=useState(null);
   const [selT,setSelT]=useState([]);
   const [editDay,setEditDay]=useState(null);
   const days=dIM(month,CUR_Y),firstD=fDOM(month,CUR_Y),monthData=data[month]||{};
@@ -1085,7 +1096,7 @@ function Suivi({data,setData,trackers,moods,accent,th,lang}){
   const chartData=Array.from({length:days},(_,i)=>{const d=i+1,e=monthData[d],row={day:d};trackers.forEach(tk=>{const raw=e?.trackers?.[tk.id];row[tk.id]=tk.type==="bool"?(raw===true?1:raw===false?0:null):(raw??null);});return row;});
   const saveDay=(day,month,d)=>setData(prev=>({...prev,[month]:{...(prev[month]||{}),[day]:d}}));
   return(<div>
-    <ToggleBar th={th} options={[["month",t.month],["year",t.year]]} value={view} onChange={setView} accent={accent}/>
+    <ToggleBar th={th} options={[["month",t.month],["year",<span key="yr">{t.year} {!isPlus&&<PaywallBadge accent={accent}/>}</span>]]} value={view} onChange={v=>{if(v==="year"&&!isPlus){setPaywallFeature('charts');return;}setView(v);}} accent={accent}/>
     <div style={{height:14}}/>
     {view==="month"&&<>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
@@ -1138,18 +1149,25 @@ function Suivi({data,setData,trackers,moods,accent,th,lang}){
       <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:12}}>{moods.map(m=><div key={m.id} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:8,height:8,borderRadius:2,background:m.color}}/><span style={{fontSize:10,color:th.text3}}>{m.label}</span></div>)}</div>
     </>}
     {editDay&&<DayModal day={editDay.day} month={editDay.month} year={CUR_Y} dayData={data[editDay.month]?.[editDay.day]} trackers={trackers} moods={moods} accent={accent} th={th} lang={lang} onSave={d=>{saveDay(editDay.day,editDay.month,d);setEditDay(null);}} onClose={()=>setEditDay(null)}/>}
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>setPaywallFeature(null)}/>}
   </div>);
 }
 
-function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdPopup }) {
+function Decharge({ journalEntries, setJournalEntries, accent, th, lang, isPlus, showAdPopup }) {
   const t = I18N[lang] || I18N.fr;
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [sortAsc, setSortAsc] = useState(false);
+  const [paywallFeature, setPaywallFeature] = useState(null);
 
   const submitEntry = () => {
     const content = draft.trim();
     if (!content) return;
+
+    if (!editingId && !isPlus && journalEntries.length >= 5) {
+      setPaywallFeature('journal');
+      return;
+    }
 
     if (editingId) {
       setJournalEntries((prev) =>
@@ -1298,6 +1316,7 @@ function Decharge({ journalEntries, setJournalEntries, accent, th, lang, showAdP
           </Card>
         ))}
       </div>
+      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={() => setPaywallFeature(null)} onUpgrade={() => setPaywallFeature(null)}/>}
     </div>
   );
 }
@@ -1332,10 +1351,12 @@ function Parametres({
   onShowPrivacy,
 }) {
   const t = I18N[lang] || I18N.fr;
+  const isPlus = plan === "premium";
   const [showMoodModal, setShowMoodModal] = useState(false);
   const [feedbackType, setFeedbackType] = useState("idea");
   const [feedbackText, setFeedbackText] = useState("");
   const [sent, setSent] = useState(false);
+  const [paywallFeature, setPaywallFeature] = useState(null);
 
   const accentOptions = ["#7C9EFF", "#4ADE80", "#F472B6", "#FBBF24", "#FB923C", "#2DD4BF"];
   const genderOptions = [
@@ -1417,7 +1438,10 @@ function Parametres({
                 active={theme === key}
                 color={accent}
                 th={th}
-                onClick={() => setTheme(key)}
+                onClick={() => {
+                  if (!isPlus && key !== "light") { setPaywallFeature('themes'); return; }
+                  setTheme(key);
+                }}
               >
                 {val.icon} {key === "dark" ? t.themeDark : key === "light" ? t.themeLight : t.themeWarm}
               </Pill>
@@ -1534,6 +1558,7 @@ function Parametres({
             {plan === "premium" ? "✦ Lumio+" : t.free}
           </div>
         </div>
+        <PlanComparison isPlus={isPlus} accent={accent} lang={lang} onUpgrade={() => setPaywallFeature('trackers')}/>
       </Card>
 
       <Card th={th} style={{ marginBottom: 12 }}>
@@ -1656,6 +1681,7 @@ function Parametres({
           onClose={() => setShowMoodModal(false)}
         />
       )}
+      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={() => setPaywallFeature(null)} onUpgrade={() => setPaywallFeature(null)}/>}
     </div>
   );
 }
@@ -1948,7 +1974,9 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   const [reminderTime, setReminderTime] = useState(ls.reminderTime || "20:00");
   const [firstName, setFirstName] = useState(ls.firstName ?? (displayName ? displayName.split(" ")[0] : ""));
   const [lastName, setLastName] = useState(ls.lastName ?? (displayName ? displayName.split(" ").slice(1).join(" ") : ""));
-  const plan = (role === "paid" || role === "admin") ? "premium" : "free";
+  const isPlus = role === "paid" || role === "admin";
+  const plan = isPlus ? "premium" : "free";
+  const planData = usePlan(isPlus);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showRoadmapModal, setShowRoadmapModal] = useState(false);
@@ -2278,6 +2306,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             accent={accent}
             th={th}
             lang={lang}
+            isPlus={isPlus}
             showAdPopup={showAdPopup}
           />
         )}
@@ -2291,6 +2320,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             accent={accent}
             th={th}
             lang={lang}
+            isPlus={isPlus}
           />
         )}
 
@@ -2301,6 +2331,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             accent={accent}
             th={th}
             lang={lang}
+            isPlus={isPlus}
             showAdPopup={showAdPopup}
           />
         )}
