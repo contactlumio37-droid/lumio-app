@@ -2256,10 +2256,34 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
       <div style={pageWrapStyle}>
         {tab === "home" && (
           <>
+            {/* Header home : salutation + CompanionBadge */}
+            {companionAnimal && !companion.loading && (
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 20,
+              }}>
+                <div>
+                  <div style={{ fontFamily: "DM Sans, sans-serif", fontSize: 13, color: "#6B7280" }}>
+                    {(() => { const h = new Date().getHours(); return h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir"; })()}
+                  </div>
+                  <div style={{ fontFamily: "Syne, sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: "-0.02em", color: "#EDE9FE" }}>
+                    {firstName || "toi"} ✨
+                  </div>
+                </div>
+                <CompanionBadge
+                  config={companion.config}
+                  streak={companion.streak}
+                  checkoutDone={checkoutDone}
+                  onCheckout={() => setTab("checkout")}
+                />
+              </div>
+            )}
+
             {!companionAnimal && !companion.loading && (
               <CompanionSelector
                 userId={userId}
-                accent={accent}
                 onSelect={animal => setCompanionAnimal(animal)}
               />
             )}
@@ -2271,6 +2295,8 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
                 assetPath={companion.assetPath}
                 streak={companion.streak}
                 accent={accent}
+                userId={userId}
+                lang={lang}
               />
             )}
             {pulse.active && pulse.triggerType && (

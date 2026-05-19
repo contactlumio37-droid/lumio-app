@@ -2,44 +2,61 @@ import { useState, useCallback } from 'react'
 import {
   saveCheckout,
   getTodaySnapshot,
+  isStrongEmotion,
   type CheckoutData,
   type DailySnapshot,
+  type MoodScore,
+  type EmotionType,
 } from '../services/checkoutService'
 
-export type CheckoutStep = 1 | 2 | 3 | 4 | 5
+export type CheckoutStep = 1 | 2 | 3 | 4
 
 interface CheckoutState {
-  step: CheckoutStep
-  data: Partial<CheckoutData>
+  step:          CheckoutStep
+  data:          Partial<CheckoutData>
   todaySnapshot: DailySnapshot | null
-  submitting: boolean
-  error: string | null
+  submitting:    boolean
+  error:         string | null
+  completed:     boolean
 }
 
 export function useCheckout(userId: string) {
   const [state, setState] = useState<CheckoutState>({
-    step: 1,
-    data: {},
+    step:          1,
+    data:          {},
     todaySnapshot: null,
-    submitting: false,
-    error: null,
+    submitting:    false,
+    error:         null,
+    completed:     false,
   })
 
+  const nextStep = useCallback(() => {
+    setState(s => ({ ...s, step: Math.min(4, s.step + 1) as CheckoutStep }))
+  }, [])
+
+  const prevStep = useCallback(() => {
+    setState(s => ({ ...s, step: Math.max(1, s.step - 1) as CheckoutStep }))
+  }, [])
+
+  const goToStep = useCallback((step: CheckoutStep) => {
+    setState(s => ({ ...s, step }))
+  }, [])
+
   const setMood = useCallback(
-    (mood: 1 | 2 | 3 | 4 | 5, emotion: CheckoutData['emotion_primary'], intensity: 1 | 2 | 3 | 4 | 5) => {
+    (mood: MoodScore, emotion: EmotionType, intensity: MoodScore) => {
       setState(s => ({
         ...s,
         data: { ...s.data, mood_evening: mood, emotion_primary: emotion, emotion_intensity: intensity },
-        step: (s.step === 1 ? 2 : s.step) as CheckoutStep,
       }))
     },
     [],
   )
 
   const setDecharge = useCallback((text: string) => {
+    const sliced = text.slice(0, 500)
     setState(s => ({
       ...s,
-      data: { ...s.data, decharge_text: text, decharge_length: text.length },
+      data: { ...s.data, decharge_text: sliced, decharge_length: sliced.length },
     }))
   }, [])
 
@@ -50,18 +67,18 @@ export function useCheckout(userId: string) {
   const setTodos = useCallback((todo1: string, todo2: string) => {
     setState(s => ({
       ...s,
-      data: { ...s.data, tomorrow_todo_1: todo1, tomorrow_todo_2: todo2 },
+      data: {
+        ...s.data,
+        tomorrow_todo_1: todo1.slice(0, 200),
+        tomorrow_todo_2: todo2.slice(0, 200),
+      },
     }))
   }, [])
 
-  const goToStep = useCallback((step: CheckoutStep) => {
-    setState(s => ({ ...s, step }))
-  }, [])
-
-  const isEmotionStrong = useCallback((): boolean => {
+  const checkIsEmotionStrong = useCallback((): boolean => {
     const { emotion_primary, emotion_intensity } = state.data
-    if (!emotion_primary || emotion_primary === 'neutre') return false
-    return (emotion_intensity ?? 0) >= 3
+    if (!emotion_primary || !emotion_intensity) return false
+    return isStrongEmotion(emotion_primary, emotion_intensity)
   }, [state.data])
 
   const submit = useCallback(async (): Promise<void> => {
@@ -85,7 +102,7 @@ export function useCheckout(userId: string) {
       })
 
       const snapshot = await getTodaySnapshot(userId)
-      setState(s => ({ ...s, step: 5, todaySnapshot: snapshot, submitting: false }))
+      setState(s => ({ ...s, submitting: false, completed: true, todaySnapshot: snapshot }))
     } catch (err) {
       setState(s => ({
         ...s,
@@ -96,21 +113,24 @@ export function useCheckout(userId: string) {
   }, [state, userId])
 
   const reset = useCallback(() => {
-    setState({ step: 1, data: {}, todaySnapshot: null, submitting: false, error: null })
+    setState({ step: 1, data: {}, todaySnapshot: null, submitting: false, error: null, completed: false })
   }, [])
 
   return {
-    step: state.step,
-    checkoutData: state.data,
-    todaySnapshot: state.todaySnapshot,
-    submitting: state.submitting,
-    error: state.error,
+    step:           state.step,
+    checkoutData:   state.data,
+    todaySnapshot:  state.todaySnapshot,
+    submitting:     state.submitting,
+    error:          state.error,
+    completed:      state.completed,
+    nextStep,
+    prevStep,
+    goToStep,
     setMood,
     setDecharge,
     setJoyNote,
     setTodos,
-    goToStep,
-    isEmotionStrong,
+    isEmotionStrong: checkIsEmotionStrong,
     submit,
     reset,
   }

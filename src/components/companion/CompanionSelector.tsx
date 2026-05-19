@@ -1,94 +1,162 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Animal } from '../../services/companionService'
+import { getCompanionConfig, STATE_COLORS } from '../../services/companionService'
+import { CompanionAvatar } from './CompanionAvatar'
+
+// Showcase state par animal → couleurs variées dans la grille
+const SHOWCASE: Record<Animal, 'serene' | 'attentive' | 'proud'> = {
+  otter:    'serene',
+  hedgehog: 'attentive',
+  fox:      'proud',
+  koala:    'serene',
+  axolotl:  'attentive',
+}
+
+const ANIMALS: { id: Animal; name: string; trait: string }[] = [
+  { id: 'otter',    name: 'Loutre',   trait: 'Douce et joueuse'       },
+  { id: 'hedgehog', name: 'Hérisson', trait: 'Discret et fidèle'      },
+  { id: 'fox',      name: 'Renard',   trait: 'Curieux et vif'         },
+  { id: 'koala',    name: 'Koala',    trait: 'Calme et résilient'     },
+  { id: 'axolotl',  name: 'Axolotl',  trait: 'Unique et régénérateur' },
+]
 
 interface Props {
-  userId: string
-  accent: string
+  userId:   string
   onSelect: (animal: Animal) => void
 }
 
-const ANIMALS: { id: Animal; emoji: string; name: string; description: string }[] = [
-  { id: 'otter', emoji: '🦦', name: 'Loutre', description: 'Douce et joueuse' },
-  { id: 'hedgehog', emoji: '🦔', name: 'Hérisson', description: 'Discret et fidèle' },
-  { id: 'fox', emoji: '🦊', name: 'Renard', description: 'Curieux et vif' },
-  { id: 'koala', emoji: '🐨', name: 'Koala', description: 'Calme et résilient' },
-  { id: 'axolotl', emoji: '🦎', name: 'Axolotl', description: 'Unique et régénérateur' },
-]
-
-export function CompanionSelector({ userId, accent, onSelect }: Props) {
+export function CompanionSelector({ userId, onSelect }: Props) {
   const [selected, setSelected] = useState<Animal | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [saving,   setSaving]   = useState(false)
 
   async function handleConfirm() {
     if (!selected) return
     setSaving(true)
-    await supabase
-      .from('profiles')
-      .update({ companion_animal: selected })
-      .eq('id', userId)
+    await supabase.from('profiles').update({ companion_animal: selected }).eq('id', userId)
     setSaving(false)
     onSelect(selected)
   }
 
+  const firstFour = ANIMALS.slice(0, 4)
+  const axolotl   = ANIMALS[4]
+
+  function renderCard(a: { id: Animal; name: string; trait: string }) {
+    const active  = selected === a.id
+    const state   = SHOWCASE[a.id]
+    const config  = getCompanionConfig(a.id, state, 'fr', 0)
+    const color   = active ? STATE_COLORS[state] : 'rgba(255,255,255,0.07)'
+
+    return (
+      <button
+        key={a.id}
+        aria-label={`Choisir ${a.name} comme compagnon`}
+        onClick={() => setSelected(a.id)}
+        style={{
+          display:        'flex',
+          flexDirection:  'column',
+          alignItems:     'center',
+          gap:             10,
+          padding:        '20px 12px',
+          borderRadius:    20,
+          border:         `1px solid ${color}`,
+          background:      active ? `${STATE_COLORS[state]}12` : 'rgba(255,255,255,0.03)',
+          boxShadow:       active ? `0 0 24px ${STATE_COLORS[state]}25` : 'none',
+          cursor:         'pointer',
+          transition:     'all 200ms cubic-bezier(0.4,0,0.2,1)',
+          width:          '100%',
+        }}
+      >
+        <CompanionAvatar config={config} size="md" />
+        <div style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              fontFamily: 'Syne, sans-serif',
+              fontWeight: 700,
+              fontSize:   14,
+              color:      '#EDE9FE',
+              marginBottom: 3,
+            }}
+          >
+            {a.name}
+          </div>
+          <div
+            style={{
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize:   12,
+              color:      '#6B7280',
+            }}
+          >
+            {a.trait}
+          </div>
+        </div>
+      </button>
+    )
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '24px 16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
+        <div
+          style={{
+            fontFamily:    'Syne, sans-serif',
+            fontWeight:    900,
+            fontSize:      22,
+            letterSpacing: '-0.02em',
+            color:         '#EDE9FE',
+            marginBottom:  8,
+          }}
+        >
           Choisis ton compagnon
         </div>
-        <div style={{ fontSize: 14, opacity: 0.6, lineHeight: 1.5 }}>
+        <div
+          style={{
+            fontFamily: 'DM Sans, sans-serif',
+            fontSize:   14,
+            color:      '#6B7280',
+            lineHeight: 1.5,
+          }}
+        >
           Il t'accompagnera dans ta pratique quotidienne.
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {ANIMALS.map(a => (
-          <button
-            key={a.id}
-            onClick={() => setSelected(a.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              padding: '14px 16px',
-              borderRadius: 16,
-              border: selected === a.id
-                ? `2px solid ${accent}`
-                : '2px solid rgba(255,255,255,0.1)',
-              background: selected === a.id
-                ? `${accent}22`
-                : 'rgba(255,255,255,0.04)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              fontFamily: 'inherit',
-              color: 'inherit',
-              transition: 'all 0.15s',
-            }}
-          >
-            <span style={{ fontSize: 32 }}>{a.emoji}</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{a.name}</div>
-              <div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>{a.description}</div>
-            </div>
-          </button>
-        ))}
+      {/* Grille 2 colonnes — 4 premiers */}
+      <div
+        style={{
+          display:             'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap:                  12,
+        }}
+      >
+        {firstFour.map(a => renderCard(a))}
+      </div>
+
+      {/* Axolotl centré */}
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ width: 'calc(50% - 6px)' }}>
+          {renderCard(axolotl)}
+        </div>
       </div>
 
       <button
+        aria-label="Confirmer le choix du compagnon"
         onClick={handleConfirm}
         disabled={!selected || saving}
         style={{
-          padding: '14px',
-          borderRadius: 16,
-          border: 'none',
-          background: accent,
-          color: '#fff',
-          fontWeight: 800,
-          fontSize: 15,
-          cursor: selected ? 'pointer' : 'default',
-          opacity: selected && !saving ? 1 : 0.4,
-          fontFamily: 'inherit',
+          padding:       '14px 24px',
+          borderRadius:   16,
+          border:        'none',
+          background:    'linear-gradient(135deg, #7C3AED, #4F46E5)',
+          color:         '#fff',
+          fontFamily:    'Syne, sans-serif',
+          fontWeight:    700,
+          fontSize:      14,
+          letterSpacing: '0.05em',
+          boxShadow:     '0 8px 24px rgba(124,58,237,0.4)',
+          cursor:         selected && !saving ? 'pointer' : 'default',
+          opacity:        selected && !saving ? 1 : 0.4,
+          transition:    'opacity 200ms',
         }}
       >
         {saving ? 'Enregistrement…' : 'Choisir ce compagnon'}

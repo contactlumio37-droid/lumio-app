@@ -1,12 +1,42 @@
 import type { DailySnapshot } from './checkoutService'
 
-export type Animal = 'otter' | 'hedgehog' | 'fox' | 'koala' | 'axolotl'
+// ─── Types exportés ────────────────────────────────────────────────────────────
+
+export type Animal         = 'otter' | 'hedgehog' | 'fox' | 'koala' | 'axolotl'
 export type CompanionState = 'serene' | 'attentive' | 'worried' | 'proud' | 'sleeping'
+
+export interface CompanionConfig {
+  animal:      Animal
+  state:       CompanionState
+  message:     string
+  accentColor: string  // couleur de l'état
+  emoji:       string  // emoji de l'animal
+}
+
+// ─── Mappings ──────────────────────────────────────────────────────────────────
+
+export const STATE_COLORS: Record<CompanionState, string> = {
+  serene:    '#14B8A6', // teal
+  attentive: '#C4B5FD', // lavender
+  worried:   '#F43F5E', // rose
+  proud:     '#F59E0B', // amber
+  sleeping:  '#4F46E5', // indigo
+}
+
+export const ANIMAL_EMOJI: Record<Animal, string> = {
+  otter:    '🦦',
+  hedgehog: '🦔',
+  fox:      '🦊',
+  koala:    '🐨',
+  axolotl:  '🦎',
+}
+
+// ─── Dictionnaire de messages (3 par animal × état) ────────────────────────────
 
 const MESSAGES: Record<Animal, Record<CompanionState, Record<string, string[]>>> = {
   otter: {
     serene: {
-      fr: ["Je nage doucement avec toi 🌊", "L'eau est douce ce soir ✨", "On avance, ensemble 🦦"],
+      fr: ["Je nage doucement avec toi 🌊", "L'eau est douce ce soir ✨", "On avance ensemble, pas à pas 🦦"],
       en: ["Gliding gently with you 🌊", "Smooth waters tonight ✨", "Moving forward, together 🦦"],
     },
     attentive: {
@@ -18,8 +48,8 @@ const MESSAGES: Record<Animal, Record<CompanionState, Record<string, string[]>>>
       en: ["I sense it's hard. I'm here 💙", "You don't have to face this alone.", "Take a deep breath with me 🌊"],
     },
     proud: {
-      fr: ["7 jours de suite ! Tu es incroyable 🌟", "Cette constance, c'est ta force ✨", "Regarde tout ce chemin parcouru 🦦"],
-      en: ["7 days straight! You're incredible 🌟", "This consistency is your strength ✨", "Look how far you've come 🦦"],
+      fr: ["{streak} jours de suite ! Tu es incroyable 🌟", "Cette constance, c'est ta force ✨", "Regarde tout ce chemin parcouru 🦦"],
+      en: ["{streak} days straight! You're incredible 🌟", "This consistency is your strength ✨", "Look how far you've come 🦦"],
     },
     sleeping: {
       fr: ["Bonne nuit, je veille sur toi 🌙", "Dors bien, demain est une nouvelle page 💤", "La loutre somnole… repose-toi 🦦"],
@@ -36,12 +66,12 @@ const MESSAGES: Record<Animal, Record<CompanionState, Record<string, string[]>>>
       en: ["My little ears are perked up 🦔", "I'm listening, tell me.", "What happened today?"],
     },
     worried: {
-      fr: ["Je me serre contre toi 🦔", "Les épines, c'est pour se protéger — toi aussi tu peux.", "On va traverser ça ensemble."],
-      en: ["I'm snuggling up to you 🦔", "Spines are for protection — you can protect yourself too.", "We'll get through this together."],
+      fr: ["Je me serre contre toi 🦔", "Les épines protègent — toi aussi tu peux.", "On va traverser ça ensemble."],
+      en: ["I'm snuggling up to you 🦔", "Spines are for protection — you can too.", "We'll get through this together."],
     },
     proud: {
-      fr: ["Tu brilles plus que mes épines ! ✨", "Quel héros, quelle héroïne 🦔", "7 jours ! Je suis fier·ère de toi 🌟"],
-      en: ["You shine brighter than my spines! ✨", "What a hero 🦔", "7 days! I'm proud of you 🌟"],
+      fr: ["{streak} jours ! Tu brilles plus que mes épines ✨", "Quel héros, quelle héroïne 🦔", "Je suis fier·ère de toi 🌟"],
+      en: ["{streak} days! You shine brighter than my spines ✨", "What a hero 🦔", "I'm proud of you 🌟"],
     },
     sleeping: {
       fr: ["Le hérisson hiberne… bonne nuit 🦔", "Recroquevillé dans les rêves 💤", "Nuit douce, nuit calme 🌙"],
@@ -62,8 +92,8 @@ const MESSAGES: Record<Animal, Record<CompanionState, Record<string, string[]>>>
       en: ["I stay by your side 🦊", "Even foxes need to breathe.", "Let the forest hold you tonight."],
     },
     proud: {
-      fr: ["Le renard danse ! 7 jours 🌟", "Tu as la ténacité du renard ✨", "Impressionnant·e, vraiment 🦊"],
-      en: ["The fox dances! 7 days 🌟", "You have the fox's tenacity ✨", "Truly impressive 🦊"],
+      fr: ["{streak} jours — le renard danse ! 🌟", "Tu as la ténacité du renard ✨", "Impressionnant·e, vraiment 🦊"],
+      en: ["{streak} days — the fox dances! 🌟", "You have the fox's tenacity ✨", "Truly impressive 🦊"],
     },
     sleeping: {
       fr: ["Le renard dort dans son terrier 🦊", "Bonne nuit, chasseur·se de rêves 🌙", "Repose-toi, demain une nouvelle aventure 💤"],
@@ -80,12 +110,12 @@ const MESSAGES: Record<Animal, Record<CompanionState, Record<string, string[]>>>
       en: ["The koala opens its eyes 🐨", "Something catches my attention… you.", "How are you, really?"],
     },
     worried: {
-      fr: ["Je me serre fort contre la branche 🐨", "Parfois on a besoin de ralentir — c'est ok.", "Je reste là, avec toi."],
+      fr: ["Je me serre fort contre la branche 🐨", "Parfois il faut ralentir — c'est ok.", "Je reste là, avec toi."],
       en: ["Holding tight to the branch 🐨", "Sometimes we need to slow down — that's ok.", "I'm staying here, with you."],
     },
     proud: {
-      fr: ["Le koala est épaté ! 7 jours 🌟", "Tu es plus tenace que l'eucalyptus 🐨", "Bravo, vraiment ✨"],
-      en: ["The koala is amazed! 7 days 🌟", "You're tougher than eucalyptus 🐨", "Well done, truly ✨"],
+      fr: ["{streak} jours — le koala est épaté ! 🌟", "Tu es plus tenace que l'eucalyptus 🐨", "Bravo, vraiment ✨"],
+      en: ["{streak} days — the koala is amazed! 🌟", "You're tougher than eucalyptus 🐨", "Well done, truly ✨"],
     },
     sleeping: {
       fr: ["Le koala dort 20h/jour… rejoins-le 🐨", "Bonne nuit douce 🌙", "Dans les bras de Morphée 💤"],
@@ -106,8 +136,8 @@ const MESSAGES: Record<Animal, Record<CompanionState, Record<string, string[]>>>
       en: ["Even axolotls regenerate 🦎", "You're more resilient than you think.", "I stay in the waters with you."],
     },
     proud: {
-      fr: ["L'axolotl fait des bulles de joie ! 🌟", "7 jours — tu te régénères en beauté ✨", "Incroyable, comme toujours 🦎"],
-      en: ["The axolotl blows bubbles of joy! 🌟", "7 days — you regenerate beautifully ✨", "Incredible, as always 🦎"],
+      fr: ["{streak} jours — l'axolotl fait des bulles de joie ! 🌟", "Tu te régénères en beauté ✨", "Incroyable, comme toujours 🦎"],
+      en: ["{streak} days — the axolotl blows bubbles of joy! 🌟", "You regenerate beautifully ✨", "Incredible, as always 🦎"],
     },
     sleeping: {
       fr: ["L'axolotl plonge dans les rêves 🦎", "Bonne nuit sous-marine 🌙", "Régénère-toi cette nuit 💤"],
@@ -116,29 +146,89 @@ const MESSAGES: Record<Animal, Record<CompanionState, Record<string, string[]>>>
   },
 }
 
+// ─── Utilitaires internes ──────────────────────────────────────────────────────
+
+function localDateISO(d: Date = new Date()): string {
+  const y  = d.getFullYear()
+  const m  = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+function hashStr(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+
+// ─── Fonctions publiques ───────────────────────────────────────────────────────
+
+/**
+ * Calcule l'état du compagnon selon snapshot, streak et heure locale.
+ * Priorité : sleeping > proud > worried > attentive > serene
+ */
 export function getCompanionState(
   snapshot: DailySnapshot | null,
   streak: number,
+  hour: number,
 ): CompanionState {
-  if (!snapshot) return 'attentive'
+  // Sleeping : nuit, tôt le matin, ou checkout fait
+  if (hour < 7 || hour >= 22 || snapshot?.checkout_done === true) return 'sleeping'
 
-  const hour = new Date().getHours()
-  if (snapshot.checkout_done || hour >= 22 || hour < 7) return 'sleeping'
+  // Proud : streak >= 7
   if (streak >= 7) return 'proud'
-  if ((snapshot.mood_evening ?? 5) <= 2) return 'worried'
-  if ((snapshot.sleep_quality ?? 5) <= 2) return 'worried'
 
-  const today = new Date().toISOString().slice(0, 10)
-  if (snapshot.date !== today) return 'attentive'
+  // Worried : mauvaise humeur ou mauvais sommeil
+  if (snapshot) {
+    if ((snapshot.mood_evening ?? 5) <= 2)  return 'worried'
+    if ((snapshot.sleep_quality ?? 5) <= 2) return 'worried'
+  }
+
+  // Attentive : pas de snapshot ou absence >= 2 jours
+  if (!snapshot) return 'attentive'
+  const today     = localDateISO()
+  const diffDays  = Math.round(
+    (new Date(today).getTime() - new Date(snapshot.date).getTime()) / 86_400_000,
+  )
+  if (diffDays >= 2) return 'attentive'
 
   return 'serene'
 }
 
-export function getCompanionMessage(animal: Animal, state: CompanionState, lang: string): string {
-  const pool = MESSAGES[animal]?.[state]?.[lang] ?? MESSAGES[animal]?.[state]?.fr ?? ['…']
-  return pool[Math.floor(Math.random() * pool.length)]
+/**
+ * Sélection cohérente du message via hash(userId + date).
+ * Interpole {streak} pour l'état "proud".
+ */
+export function getCompanionMessage(
+  animal:  Animal,
+  state:   CompanionState,
+  lang:    string,
+  streak:  number,
+  userId?: string,
+): string {
+  const pool = MESSAGES[animal]?.[state]?.[lang] ?? MESSAGES[animal]?.[state]?.['fr'] ?? ['…']
+  const key  = userId ? hashStr(`${userId}${localDateISO()}`) : Math.floor(Math.random() * pool.length)
+  const msg  = pool[(key as number) % pool.length]
+  return msg.replace('{streak}', String(streak))
 }
 
+export function getCompanionConfig(
+  animal:  Animal,
+  state:   CompanionState,
+  lang:    string,
+  streak:  number,
+  userId?: string,
+): CompanionConfig {
+  return {
+    animal,
+    state,
+    message:     getCompanionMessage(animal, state, lang, streak, userId),
+    accentColor: STATE_COLORS[state],
+    emoji:       ANIMAL_EMOJI[animal],
+  }
+}
+
+/** Chemin asset PNG (fallback si emoji non suffisant). */
 export function getCompanionAssetPath(animal: Animal, state: CompanionState): string {
   return `/companions/${animal}/${state}.png`
 }
