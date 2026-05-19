@@ -1,9 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { createHmac } from 'https://deno.land/std@0.177.0/node/crypto.ts'
-
 const REVENUECAT_WEBHOOK_AUTH_HEADER = 'X-RevenueCat-Signature'
 
-// Événements RevenueCat qui activent le plan plus
 const PLUS_EVENTS = new Set([
   'INITIAL_PURCHASE',
   'RENEWAL',
@@ -11,7 +7,6 @@ const PLUS_EVENTS = new Set([
   'UNCANCELLATION',
 ])
 
-// Événements RevenueCat qui révoquer le plan plus
 const FREE_EVENTS = new Set([
   'CANCELLATION',
   'EXPIRATION',
@@ -27,11 +22,27 @@ interface RevenueCatWebhookPayload {
   }
 }
 
-function verifySignature(body: string, signature: string, secret: string): boolean {
-  const hmac = createHmac('sha256', secret)
-  hmac.update(body)
-  const expected = hmac.digest('hex')
-  return expected === signature
+async function verifySignature(body: string, signature: string, secret: string): Promise<boolean> {
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const sigBytes = await crypto.subtle.sign('HMAC', key, enc.encode(body))
+  const expected = Array.from(new Uint8Array(sigBytes))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+
+  // Timing-safe byte-by-byte comparison
+  const a = enc.encode(expected)
+  const b = enc.encode(signature)
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]
+  return diff === 0
 }
 
 Deno.serve(async (req: Request) => {
@@ -46,10 +57,12 @@ Deno.serve(async (req: Request) => {
   }
 
   const signature = req.headers.get(REVENUECAT_WEBHOOK_AUTH_HEADER)
-  const rawBody = await req.text()
+  if (!signature) {
+    return new Response('Signature manquante', { status: 401 })
+  }
 
-  // Vérifie la signature HMAC si fournie
-  if (signature && !verifySignature(rawBody, signature, webhookSecret)) {
+  const rawBody = await req.text()
+  if (!await verifySignature(rawBody, signature, webhookSecret)) {
     return new Response('Signature invalide', { status: 401 })
   }
 
@@ -68,20 +81,18 @@ Deno.serve(async (req: Request) => {
   } else if (FREE_EVENTS.has(eventType)) {
     newPlan = 'free'
   } else {
-    // Événement non géré — on ignore
     return new Response(JSON.stringify({ ignored: true, type: eventType }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
   }
 
-  // Client admin pour bypasser RLS sur la colonne plan
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
-  // Met à jour profiles.plan via service_role (RLS bypassé)
   const { error } = await supabaseAdmin
     .from('profiles')
     .update({ plan: newPlan, revenuecat_id: app_user_id })

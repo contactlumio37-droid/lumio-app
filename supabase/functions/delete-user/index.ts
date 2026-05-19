@@ -1,7 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? 'https://lumio-8ed03.web.app'
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -11,7 +13,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Vérifie que l'appelant est authentifié
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Non autorisé' }), {
@@ -20,7 +21,7 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Client avec la clé anon pour récupérer l'utilisateur appelant
+    // Vérifie l'utilisateur appelant via le token Supabase Auth
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -45,12 +46,29 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Client admin pour supprimer auth.users (nécessite service_role)
+    // Suppression des données dans l'ordre (FK cascade)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    const tables = [
+      'journal_entries',
+      'tracker_entries',
+      'trackers',
+      'objectives',
+      'pulse_log',
+      'daily_snapshots',
+      'profiles',
+    ] as const
+
+    for (const table of tables) {
+      const col = table === 'profiles' ? 'id' : 'user_id'
+      const { error } = await supabaseAdmin.from(table).delete().eq(col, userId)
+      if (error) console.error(`[delete-user] ${table}:`, error.message)
+    }
+
+    // Supprime le compte Supabase Auth
     const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {

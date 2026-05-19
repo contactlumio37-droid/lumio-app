@@ -1,4 +1,4 @@
-const LAST_UPDATED = "18 mai 2026";
+const LAST_UPDATED = "19 mai 2026";
 
 const SECTIONS = [
   {
@@ -12,7 +12,7 @@ const SECTIONS = [
     content:
       "Nous collectons : votre adresse e-mail et identifiant Google (si connexion Google), " +
       "votre prénom et nom (optionnels, renseignés par vous), vos données de suivi personnel " +
-      "(humeurs, habitudes, journal — stockées dans votre compte Firestore), " +
+      "(humeurs, habitudes, journal — stockées dans votre base de données Supabase), " +
       "vos préférences d'application (thème, langue, notifications). " +
       "Ces données sont nécessaires au fonctionnement du service.",
   },
@@ -48,7 +48,7 @@ const SECTIONS = [
   {
     title: "7. Partage des données",
     content:
-      "Vos données sont hébergées sur Google Firebase (serveurs en Europe, certifié ISO 27001). " +
+      "Vos données sont hébergées sur Supabase (serveurs en Europe, certifié SOC 2). " +
       "La gestion d'abonnement est confiée à RevenueCat. " +
       "Nous ne vendons jamais vos données à des tiers.",
   },
@@ -64,8 +64,8 @@ const SECTIONS = [
     title: "9. Sécurité",
     content:
       "Vos données sont chiffrées en transit (HTTPS / TLS 1.3) et protégées au repos sur " +
-      "les serveurs Firebase. Des règles de sécurité Firestore garantissent que chaque " +
-      "utilisateur n'accède qu'à ses propres données.",
+      "les serveurs Supabase. Des politiques de sécurité Row-Level Security (RLS) garantissent " +
+      "que chaque utilisateur n'accède qu'à ses propres données.",
   },
 ];
 

@@ -22,6 +22,7 @@ export interface Database {
           plan: 'free' | 'plus'
           revenuecat_id: string | null
           onboarding_done: boolean
+          is_admin: boolean
           fcm_token: string | null
           created_at: string
           updated_at: string
@@ -35,6 +36,7 @@ export interface Database {
           plan?: 'free' | 'plus'
           revenuecat_id?: string | null
           onboarding_done?: boolean
+          is_admin?: boolean
           fcm_token?: string | null
           created_at?: string
           updated_at?: string
@@ -48,6 +50,7 @@ export interface Database {
           plan?: 'free' | 'plus'
           revenuecat_id?: string | null
           onboarding_done?: boolean
+          is_admin?: boolean
           fcm_token?: string | null
           created_at?: string
           updated_at?: string

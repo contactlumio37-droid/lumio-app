@@ -12,9 +12,12 @@ import { CompanionBadge } from "./components/companion/CompanionBadge";
 import { usePulse } from "./hooks/usePulse";
 import { PulseNotice } from "./components/pulse/PulseNotice";
 import { usePlan } from "./hooks/usePlan";
+import { usePurchase } from "./hooks/usePurchase";
 import { PaywallModal } from "./components/paywall/PaywallModal";
 import { PaywallBadge } from "./components/paywall/PaywallBadge";
 import { PlanComparison } from "./components/paywall/PlanComparison";
+import { PurchaseScreen } from "./components/paywall/PurchaseScreen";
+import { initRevenueCat } from "./services/revenuecatService";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -645,7 +648,7 @@ function RichEditor({value,onChange,placeholder,minHeight=120,accent,th}){
           </div>}
         </div>
       </div>
-      <div ref={ref} contentEditable suppressContentEditableWarning onInput={e=>onChange(e.currentTarget.innerHTML)} data-placeholder={placeholder}
+      <div ref={ref} contentEditable suppressContentEditableWarning onInput={e=>onChange(DOMPurify.sanitize(e.currentTarget.innerHTML))} data-placeholder={placeholder}
         style={{minHeight,padding:"12px 14px",color:th.text,fontSize:14,lineHeight:1.8,fontFamily:"Georgia,serif",outline:"none",wordBreak:"break-word"}}/>
       <style>{`[contenteditable]:empty:before{content:attr(data-placeholder);color:${th.text3};pointer-events:none;} [contenteditable] ul{padding-left:16px;margin:4px 0;list-style-type:disc;} [contenteditable] ol{padding-left:16px;margin:4px 0;list-style-type:decimal;} [contenteditable] li{margin:1px 0;padding-left:2px;display:list-item;}`}</style>
     </div>
@@ -898,7 +901,7 @@ function JoyInput({onAdd,accent,th,placeholder}){
 }
 
 // ─── PAGES ────────────────────────────────────────────────────────────────────
-function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,trackers,moods,accent,firstName,plan,th,lang,showAdPopup}){
+function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,trackers,moods,accent,firstName,plan,th,lang,showAdPopup,onShowPurchase}){
   const t=I18N[lang]||I18N.fr;
   const isPlus=plan==="premium";
   const [configOpen,setConfigOpen]=useState(false);
@@ -990,11 +993,11 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
     </div>
 
     {editDay&&<DayModal day={editDay.day} month={editDay.month} year={CUR_Y} dayData={data[editDay.month]?.[editDay.day]} trackers={trackers} moods={moods} accent={accent} th={th} lang={lang} onSave={d=>saveDay(editDay.day,editDay.month,d)} onClose={()=>setEditDay(null)}/>}
-    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>setPaywallFeature(null)}/>}
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
   </div>);
 }
 
-function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,isPlus,showAdPopup}){
+function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,isPlus,showAdPopup,onShowPurchase}){
   const t=I18N[lang]||I18N.fr;
   const [paywallFeature,setPaywallFeature]=useState(null);
   const [editDay,setEditDay]=useState({day:TODAY,month:CUR_M});
@@ -1079,11 +1082,11 @@ function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,isPlus,s
       <textarea value={dayData.note||""} onChange={e=>saveDay(editDay.day,editDay.month,{...dayData,note:e.target.value})} placeholder={t.notePlaceholder} rows={3}
         style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:12,padding:"10px 14px",color:th.text,fontSize:13,fontFamily:"Georgia,serif",lineHeight:1.7,resize:"none",boxSizing:"border-box"}}/>
     </Card>
-    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>setPaywallFeature(null)}/>}
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
   </div>);
 }
 
-function Suivi({data,setData,trackers,moods,accent,th,lang,isPlus}){
+function Suivi({data,setData,trackers,moods,accent,th,lang,isPlus,onShowPurchase}){
   const t=I18N[lang]||I18N.fr;
   const [view,setView]=useState("month");
   const [subview,setSubview]=useState("heatmap");
@@ -1149,11 +1152,11 @@ function Suivi({data,setData,trackers,moods,accent,th,lang,isPlus}){
       <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:12}}>{moods.map(m=><div key={m.id} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:8,height:8,borderRadius:2,background:m.color}}/><span style={{fontSize:10,color:th.text3}}>{m.label}</span></div>)}</div>
     </>}
     {editDay&&<DayModal day={editDay.day} month={editDay.month} year={CUR_Y} dayData={data[editDay.month]?.[editDay.day]} trackers={trackers} moods={moods} accent={accent} th={th} lang={lang} onSave={d=>{saveDay(editDay.day,editDay.month,d);setEditDay(null);}} onClose={()=>setEditDay(null)}/>}
-    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>setPaywallFeature(null)}/>}
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
   </div>);
 }
 
-function Decharge({ journalEntries, setJournalEntries, accent, th, lang, isPlus, showAdPopup }) {
+function Decharge({ journalEntries, setJournalEntries, accent, th, lang, isPlus, showAdPopup, onShowPurchase }) {
   const t = I18N[lang] || I18N.fr;
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -1316,7 +1319,7 @@ function Decharge({ journalEntries, setJournalEntries, accent, th, lang, isPlus,
           </Card>
         ))}
       </div>
-      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={() => setPaywallFeature(null)} onUpgrade={() => setPaywallFeature(null)}/>}
+      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={() => setPaywallFeature(null)} onUpgrade={() => { setPaywallFeature(null); onShowPurchase?.(); }}/>}
     </div>
   );
 }
@@ -1349,6 +1352,7 @@ function Parametres({
   onLogout,
   onDeleteAccount,
   onShowPrivacy,
+  onShowPurchase,
 }) {
   const t = I18N[lang] || I18N.fr;
   const isPlus = plan === "premium";
@@ -1558,7 +1562,7 @@ function Parametres({
             {plan === "premium" ? "✦ Lumio+" : t.free}
           </div>
         </div>
-        <PlanComparison isPlus={isPlus} accent={accent} lang={lang} onUpgrade={() => setPaywallFeature('trackers')}/>
+        <PlanComparison isPlus={isPlus} accent={accent} lang={lang} onUpgrade={() => onShowPurchase?.()}/>
       </Card>
 
       <Card th={th} style={{ marginBottom: 12 }}>
@@ -1681,7 +1685,7 @@ function Parametres({
           onClose={() => setShowMoodModal(false)}
         />
       )}
-      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={() => setPaywallFeature(null)} onUpgrade={() => setPaywallFeature(null)}/>}
+      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={() => setPaywallFeature(null)} onUpgrade={() => { setPaywallFeature(null); onShowPurchase?.(); }}/>}
     </div>
   );
 }
@@ -1974,9 +1978,12 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   const [reminderTime, setReminderTime] = useState(ls.reminderTime || "20:00");
   const [firstName, setFirstName] = useState(ls.firstName ?? (displayName ? displayName.split(" ")[0] : ""));
   const [lastName, setLastName] = useState(ls.lastName ?? (displayName ? displayName.split(" ").slice(1).join(" ") : ""));
-  const isPlus = role === "paid" || role === "admin";
+  const [planOverride, setPlanOverride] = useState(null);
+  const isPlus = planOverride === "paid" || role === "paid" || role === "admin";
   const plan = isPlus ? "premium" : "free";
   const planData = usePlan(isPlus);
+  const [showPurchaseScreen, setShowPurchaseScreen] = useState(false);
+  const purchaseHook = usePurchase(userId);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showRoadmapModal, setShowRoadmapModal] = useState(false);
@@ -2017,6 +2024,14 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
       if (snap?.checkout_done) setCheckoutDone(true);
     }).catch(() => {});
   }, [userId]);
+
+  useEffect(() => {
+    if (userId) initRevenueCat(userId).catch(() => {});
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (showPurchaseScreen) purchaseHook.loadOfferings().catch(() => {});
+  }, [showPurchaseScreen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [companionAnimal, setCompanionAnimal] = useState(null);
   const companion = useCompanion(userId, companionAnimal, lang);
@@ -2284,6 +2299,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
               th={th}
               lang={lang}
               showAdPopup={showAdPopup}
+              onShowPurchase={() => setShowPurchaseScreen(true)}
             />
           </>
         )}
@@ -2308,6 +2324,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             lang={lang}
             isPlus={isPlus}
             showAdPopup={showAdPopup}
+            onShowPurchase={() => setShowPurchaseScreen(true)}
           />
         )}
 
@@ -2321,6 +2338,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             th={th}
             lang={lang}
             isPlus={isPlus}
+            onShowPurchase={() => setShowPurchaseScreen(true)}
           />
         )}
 
@@ -2333,6 +2351,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             lang={lang}
             isPlus={isPlus}
             showAdPopup={showAdPopup}
+            onShowPurchase={() => setShowPurchaseScreen(true)}
           />
         )}
 
@@ -2365,6 +2384,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             onLogout={onLogout}
             onDeleteAccount={handleDeleteAccount}
             onShowPrivacy={() => setShowPrivacy(true)}
+            onShowPurchase={() => setShowPurchaseScreen(true)}
           />
         )}
 
@@ -2465,6 +2485,29 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
 
       {showPrivacy && (
         <PrivacyPolicyModal th={th} onClose={() => setShowPrivacy(false)} />
+      )}
+
+      {showPurchaseScreen && !isPlus && (
+        <PurchaseScreen
+          accent={accent}
+          lang={lang}
+          offerings={purchaseHook.offerings}
+          loadingOfferings={purchaseHook.loadingOfferings}
+          purchasing={purchaseHook.purchasing}
+          restoring={purchaseHook.restoring}
+          onPurchase={async (pkg) => {
+            const result = await purchaseHook.purchase(pkg);
+            if (result.entitlementActive) setPlanOverride("paid");
+            return result;
+          }}
+          onRestore={async () => {
+            const result = await purchaseHook.restore();
+            if (result.entitlementActive) setPlanOverride("paid");
+            return result;
+          }}
+          onClose={() => setShowPurchaseScreen(false)}
+          companionAssetPath={companion.assetPath}
+        />
       )}
     </div>
   );
