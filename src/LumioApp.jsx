@@ -5,6 +5,10 @@ import { supabase } from "./lib/supabase";
 import { getTodaySnapshot } from "./services/checkoutService";
 import { CheckoutScreen } from "./components/checkout/CheckoutScreen";
 import { PrivacyPolicyModal } from "./components/PrivacyPolicy";
+import { useCompanion } from "./hooks/useCompanion";
+import { CompanionDisplay } from "./components/companion/CompanionDisplay";
+import { CompanionSelector } from "./components/companion/CompanionSelector";
+import { CompanionBadge } from "./components/companion/CompanionBadge";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -1984,6 +1988,9 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     }).catch(() => {});
   }, [userId]);
 
+  const [companionAnimal, setCompanionAnimal] = useState(null);
+  const companion = useCompanion(userId, companionAnimal, lang);
+
   const [feedbackItems, setFeedbackItems] = useState(() => ls.feedbackItems || []);
   const [showAd, setShowAd] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -2034,7 +2041,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
       try {
         const { data: p } = await supabase
           .from("profiles")
-          .select("language,theme,accent,gender,notifications,reminder_time,first_name,last_name,moods,trackers,widgets,objectives,journal_entries,days_data")
+          .select("language,theme,accent,gender,notifications,reminder_time,first_name,last_name,moods,trackers,widgets,objectives,journal_entries,days_data,companion_animal")
           .eq("id", userId)
           .single();
         if (p) {
@@ -2052,6 +2059,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
           if (Array.isArray(p.objectives) && p.objectives.length) setObjectives(p.objectives);
           if (Array.isArray(p.journal_entries) && p.journal_entries.length) setJournalEntries(p.journal_entries);
           if (p.days_data && typeof p.days_data === "object" && Object.keys(p.days_data).length) setData(p.days_data);
+          if (p.companion_animal) setCompanionAnimal(p.companion_animal);
         }
       } catch (err) {
         console.error("Supabase load error:", err);
@@ -2202,6 +2210,23 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
       <div style={pageWrapStyle}>
         {tab === "home" && (
           <>
+            {!companionAnimal && !companion.loading && (
+              <CompanionSelector
+                userId={userId}
+                accent={accent}
+                onSelect={animal => setCompanionAnimal(animal)}
+              />
+            )}
+            {companionAnimal && !companion.loading && (
+              <CompanionDisplay
+                animal={companion.animal}
+                state={companion.state}
+                message={companion.message}
+                assetPath={companion.assetPath}
+                streak={companion.streak}
+                accent={accent}
+              />
+            )}
             {checkoutBtn}
             <Dashboard
               data={data}
@@ -2226,7 +2251,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
           <CheckoutScreen
             accent={accent}
             lang={lang}
-            onComplete={() => { setCheckoutDone(true); setTab("home"); }}
+            onComplete={() => { setCheckoutDone(true); companion.refresh(); setTab("home"); }}
           />
         )}
 
