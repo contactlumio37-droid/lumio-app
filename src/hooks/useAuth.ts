@@ -55,7 +55,10 @@ export function signIn(email: string, password: string) {
 }
 
 export function signInWithGoogle() {
-  return supabase.auth.signInWithOAuth({ provider: 'google' })
+  return supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin },
+  })
 }
 
 export async function signUp(email: string, password: string) {
@@ -75,31 +78,16 @@ export function signOut() {
 }
 
 export function resetPassword(email: string) {
-  return supabase.auth.resetPasswordForEmail(email)
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  })
 }
 
 export async function deleteAccount(userId: string) {
-  // Suppression dans l'ordre pour respecter les FK
-  const tables = [
-    'journal_entries',
-    'tracker_entries',
-    'trackers',
-    'objectives',
-    'pulse_log',
-    'daily_snapshots',
-    'profiles',
-  ] as const
-
-  for (const table of tables) {
-    const { error } = await supabase.from(table).delete().eq('user_id', userId)
-    if (error) throw new Error(`Erreur suppression ${table}: ${error.message}`)
-  }
-
-  // Supprime auth.users via Edge Function (nécessite service_role)
   const { error } = await supabase.functions.invoke('delete-user', {
     body: { userId },
   })
-  if (error) throw new Error(`Erreur suppression auth: ${error.message}`)
+  if (error) throw new Error(`Erreur suppression: ${error.message}`)
 }
 
 export type { User, Session, Profile }

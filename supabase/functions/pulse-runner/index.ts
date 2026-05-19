@@ -3,7 +3,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const PULSE_SECRET = Deno.env.get('PULSE_SECRET') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-const FCM_SERVER_KEY = Deno.env.get('FCM_SERVER_KEY') ?? ''
 
 type Lang = 'fr' | 'en' | 'es' | 'de' | 'it' | 'pt'
 
@@ -211,25 +210,112 @@ function pickMessage(trigger: TriggerType, lang: string): { title: string; body:
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-async function sendFcmNotification(fcmToken: string, title: string, body: string): Promise<void> {
-  if (!FCM_SERVER_KEY || !fcmToken) return
-  await fetch('https://fcm.googleapis.com/fcm/send', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `key=${FCM_SERVER_KEY}`,
-    },
-    body: JSON.stringify({
-      to: fcmToken,
-      notification: { title, body },
-      data: { type: 'pulse' },
-    }),
-  })
+// ── FCM HTTP v1 API ───────────────────────────────────────────────────────────
+
+interface FcmServiceAccount {
+  project_id: string
+  private_key: string
+  client_email: string
 }
+
+function base64url(buf: ArrayBuffer): string {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+async function getFcmAccessToken(sa: FcmServiceAccount): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  const claims = btoa(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+
+  const sigInput = `${header}.${claims}`
+  const pemBody = sa.private_key.replace(/-----[^-]+-----|\s/g, '')
+  const keyBuf = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0))
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8', keyBuf,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  )
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(sigInput))
+  const jwt = `${sigInput}.${base64url(sig)}`
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }).toString(),
+  })
+  const { access_token } = await res.json() as { access_token: string }
+  return access_token
+}
+
+async function sendFcmNotification(fcmToken: string, title: string, body: string): Promise<void> {
+  const saJson = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
+  if (!saJson || !fcmToken) return
+
+  let sa: FcmServiceAccount
+  try {
+    sa = JSON.parse(saJson)
+  } catch {
+    console.error('[pulse] FCM_SERVICE_ACCOUNT_JSON invalide')
+    return
+  }
+
+  try {
+    const accessToken = await getFcmAccessToken(sa)
+    const res = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          message: {
+            token: fcmToken,
+            notification: { title, body },
+            data: { type: 'pulse' },
+          },
+        }),
+      }
+    )
+    if (!res.ok) {
+      const err = await res.text()
+      console.error(`[pulse] FCM error ${res.status}:`, err)
+    }
+  } catch (err) {
+    console.error('[pulse] FCM exception:', err)
+  }
+}
+
+// ── Secret check ──────────────────────────────────────────────────────────────
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder()
+  const ab = enc.encode(a)
+  const bb = enc.encode(b)
+  if (ab.length !== bb.length) return false
+  let diff = 0
+  for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i]
+  return diff === 0
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
   const secret = req.headers.get('x-pulse-secret')
-  if (secret !== PULSE_SECRET) {
+  if (!PULSE_SECRET || !timingSafeEqual(secret ?? '', PULSE_SECRET)) {
     return new Response('Unauthorized', { status: 401 })
   }
 
@@ -247,7 +333,6 @@ Deno.serve(async (req: Request) => {
     for (const row of users as { user_id: string }[]) {
       const userId = row.user_id
 
-      // Fetch profile for lang + fcm_token
       const { data: profile } = await supabase
         .from('profiles')
         .select('language, fcm_token')
@@ -258,21 +343,18 @@ Deno.serve(async (req: Request) => {
       const fcmToken = profile?.fcm_token ?? null
       const msg = pickMessage(trigger, lang)
 
-      // Insert pulse_log
       await supabase.from('pulse_log').insert({
         user_id: userId,
         trigger_type: trigger,
         notif_text: msg.body,
       })
 
-      // Update daily_snapshots
       await supabase
         .from('daily_snapshots')
         .update({ pulse_triggered: true, pulse_type: trigger })
         .eq('user_id', userId)
         .eq('date', today)
 
-      // Send FCM push if token available
       if (fcmToken) {
         await sendFcmNotification(fcmToken, msg.title, msg.body)
         notifsSent++
@@ -282,7 +364,6 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // Process scheduled_notifications due now
   const { data: scheduled } = await supabase
     .from('scheduled_notifications')
     .select('*')

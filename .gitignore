@@ -16,3 +16,9 @@ build/
 # Mobile Firebase credentials — NEVER commit
 android/app/google-services.json
 ios/GoogleService-Info.plist
+
+# Firebase auth exports — données sensibles, ne jamais committer
+users_export.json
+*.json.export
+firebase-export-*/
+*.bak

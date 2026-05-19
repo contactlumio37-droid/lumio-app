@@ -1,0 +1,19 @@
+{
+  "name": "Lumio",
+  "short_name": "Lumio",
+  "description": "Ton compagnon de bien-être mental au quotidien",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f23",
+  "theme_color": "#7C9EFF",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

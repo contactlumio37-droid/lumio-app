@@ -37,8 +37,7 @@ export function AuthProviderSupabase({ children }: { children: ReactNode }) {
 
   const loading = sessionLoading || (!!user && profileLoading)
   const isPaid = profile?.plan === 'plus'
-  // Admin géré via Supabase dashboard / service_role — pas de rôle client-side
-  const isAdmin = false
+  const isAdmin = profile?.is_admin ?? false
 
   const value = useMemo<AuthContextValue>(() => ({
     session,
