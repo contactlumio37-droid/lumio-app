@@ -393,7 +393,19 @@ export function PurchaseScreen({
 
         {/* Plans */}
         {loadingOfferings ? (
-          <div style={{ textAlign: 'center', color: '#6B7280', fontSize: 14, padding: '12px 0' }}>…</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[72, 56].map((h, i) => (
+              <div
+                key={i}
+                className="lumio-progress-active"
+                style={{
+                  height:       h,
+                  borderRadius: 14,
+                  opacity:      0.18,
+                }}
+              />
+            ))}
+          </div>
         ) : packages.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[

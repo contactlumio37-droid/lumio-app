@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
+import { AppLoadingSplash } from '../components/AppLoadingSplash'
 import {
   useSession,
   useProfile,
@@ -55,7 +56,7 @@ export function AuthProviderSupabase({ children }: { children: ReactNode }) {
     deleteAccount,
   }), [session, user, profile, loading, isPaid, setProfile])
 
-  if (loading) return null
+  if (loading) return <AppLoadingSplash />
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
