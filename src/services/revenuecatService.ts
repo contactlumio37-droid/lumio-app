@@ -1,20 +1,33 @@
-import { Purchases } from '@revenuecat/purchases-js'
+import {
+  Purchases,
+  Package,
+  Offerings,
+  ErrorCode,
+  LogLevel,
+  CustomerInfo,
+} from '@revenuecat/purchases-js'
 
-const API_KEY = (import.meta as { env: Record<string, string> }).env.VITE_REVENUECAT_API_KEY ?? ''
+// Re-export SDK types consumed by usePurchase and PurchaseScreen
+export type RCPackage  = Package
+export type RCOfferings = Offerings
+
+const API_KEY     = (import.meta as { env: Record<string, string> }).env.VITE_REVENUECAT_API_KEY ?? ''
 const ENTITLEMENT = 'lumio_plus'
 
 let instance: Purchases | null = null
 
-export interface PurchaseResult {
-  success: boolean
+export interface LumioPurchaseResult {
+  success:           boolean
   entitlementActive: boolean
-  error?: string
+  error?:            string
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type RCPackage = any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type RCOfferings = any
+// Backward-compat alias — usePurchase still imports PurchaseResult
+export type PurchaseResult = LumioPurchaseResult
+
+function isActive(customerInfo: CustomerInfo): boolean {
+  return ENTITLEMENT in customerInfo.entitlements.active
+}
 
 export async function initRevenueCat(userId: string): Promise<void> {
   if (!API_KEY) {
@@ -22,13 +35,14 @@ export async function initRevenueCat(userId: string): Promise<void> {
     return
   }
   try {
+    Purchases.setLogLevel(LogLevel.Silent)
     instance = Purchases.configure(API_KEY, userId)
   } catch (e) {
     console.warn('[RevenueCat] init échoué:', e)
   }
 }
 
-export async function getOfferings(): Promise<RCOfferings | null> {
+export async function getOfferings(): Promise<Offerings | null> {
   if (!instance) return null
   try {
     return await instance.getOfferings()
@@ -37,38 +51,38 @@ export async function getOfferings(): Promise<RCOfferings | null> {
   }
 }
 
-export async function purchaseLumioPlus(rcPackage: RCPackage): Promise<PurchaseResult> {
+export async function purchaseLumioPlus(rcPackage: Package): Promise<LumioPurchaseResult> {
   if (!instance) return { success: false, entitlementActive: false, error: 'not_initialized' }
   try {
     const { customerInfo } = await instance.purchase({ rcPackage })
-    const entitlementActive = ENTITLEMENT in customerInfo.entitlements.active
-    return { success: true, entitlementActive }
+    return { success: true, entitlementActive: isActive(customerInfo) }
   } catch (e: unknown) {
-    const err = e as { errorCode?: string; message?: string }
-    if (err?.errorCode === 'user_cancelled' || err?.message?.toLowerCase().includes('cancel')) {
+    if (e instanceof Purchases.PurchasesError && e.errorCode === ErrorCode.UserCancelledError) {
       return { success: false, entitlementActive: false, error: 'cancelled' }
     }
-    return { success: false, entitlementActive: false, error: err?.message ?? 'unknown' }
+    const msg = e instanceof Error ? e.message : 'unknown'
+    return { success: false, entitlementActive: false, error: msg }
   }
 }
 
-export async function restorePurchases(): Promise<PurchaseResult> {
+// Web SDK has no native restorePurchases() — re-fetch from RevenueCat servers instead
+export async function restorePurchases(): Promise<LumioPurchaseResult> {
   if (!instance) return { success: false, entitlementActive: false, error: 'not_initialized' }
   try {
-    const { customerInfo } = await instance.restorePurchases()
-    const entitlementActive = ENTITLEMENT in customerInfo.entitlements.active
-    return { success: entitlementActive, entitlementActive }
+    const customerInfo    = await instance.getCustomerInfo()
+    const entitlementActive = isActive(customerInfo)
+    return { success: true, entitlementActive }
   } catch (e: unknown) {
-    const err = e as { message?: string }
-    return { success: false, entitlementActive: false, error: err?.message ?? 'unknown' }
+    const msg = e instanceof Error ? e.message : 'unknown'
+    return { success: false, entitlementActive: false, error: msg }
   }
 }
 
 export async function checkEntitlement(): Promise<boolean> {
   if (!instance) return false
   try {
-    const { customerInfo } = await instance.getCustomerInfo()
-    return ENTITLEMENT in customerInfo.entitlements.active
+    const customerInfo = await instance.getCustomerInfo()
+    return isActive(customerInfo)
   } catch {
     return false
   }

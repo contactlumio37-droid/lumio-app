@@ -1983,7 +1983,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   const plan = isPlus ? "premium" : "free";
   const planData = usePlan(isPlus);
   const [showPurchaseScreen, setShowPurchaseScreen] = useState(false);
-  const purchaseHook = usePurchase(userId);
+  const purchaseHook = usePurchase(userId, () => setPlanOverride("paid"));
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showRoadmapModal, setShowRoadmapModal] = useState(false);
