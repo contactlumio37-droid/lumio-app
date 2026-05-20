@@ -94,7 +94,13 @@ Deno.serve(async (req: Request) => {
   // RevenueCat app_user_id = Supabase user id (set via initRevenueCat(userId)).
   // Try matching by supabase id first; fall back to revenuecat_id column for
   // aliased / legacy users. Also try original_app_user_id as last resort.
-  const candidates = [...new Set([app_user_id, original_app_user_id].filter(Boolean))] as string[]
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const candidates = [...new Set([app_user_id, original_app_user_id].filter(Boolean))]
+    .filter(c => UUID_RE.test(c)) as string[]
+  if (candidates.length === 0) {
+    console.warn(`[rc-webhook] app_user_id is not a UUID: ${app_user_id}`)
+    return json({ ok: false, reason: 'invalid_ids' }, 400)
+  }
 
   let updated = false
   for (const candidate of candidates) {

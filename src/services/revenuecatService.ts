@@ -34,6 +34,7 @@ export async function initRevenueCat(userId: string): Promise<void> {
     console.warn('[RevenueCat] VITE_REVENUECAT_API_KEY manquant — ignoré')
     return
   }
+  if (instance) return  // already configured — avoid double-init on hot reload / re-login
   try {
     Purchases.setLogLevel(LogLevel.Silent)
     instance = Purchases.configure(API_KEY, userId)

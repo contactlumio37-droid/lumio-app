@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   getOfferings,
@@ -42,13 +42,17 @@ export function usePurchase(userId: string, onPlusRestored?: () => void): Purcha
   const [purchasing,       setPurchasing]       = useState(false)
   const [restoring,        setRestoring]        = useState(false)
 
+  // Keep a stable ref so the effect never needs onPlusRestored in its dep array
+  const onPlusRestoredRef = useRef(onPlusRestored)
+  useEffect(() => { onPlusRestoredRef.current = onPlusRestored })
+
   // On mount: silently check if the user already has an active entitlement
   useEffect(() => {
     if (!userId) return
     checkEntitlement()
-      .then(active => { if (active) onPlusRestored?.() })
+      .then(active => { if (active) onPlusRestoredRef.current?.() })
       .catch(() => {})
-  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId])
 
   const loadOfferings = useCallback(async () => {
     setLoadingOfferings(true)

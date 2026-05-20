@@ -381,7 +381,8 @@ Deno.serve(async (req: Request) => {
 
         triggered++
       } catch (err) {
-        errors.push(`${trigger}/${userId}: ${String(err)}`)
+        console.error(`[pulse-runner] ${trigger} error:`, String(err))
+        errors.push(trigger)
       }
     }
   }
@@ -413,7 +414,7 @@ Deno.serve(async (req: Request) => {
   }
 
   return new Response(
-    JSON.stringify({ ok: true, triggered, sent: notifsSent, errors }),
+    JSON.stringify({ ok: true, triggered, sent: notifsSent, errorCount: errors.length }),
     { headers: { 'Content-Type': 'application/json' } },
   )
 })

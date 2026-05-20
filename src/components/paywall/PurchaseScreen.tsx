@@ -155,12 +155,12 @@ const FEATURES: Record<Lang, string[]> = {
 }
 
 const CONFETTI = [
-  { left: '8%',  delay: '0s',    color: '#7C3AED', size: 8 },
-  { left: '22%', delay: '0.12s', color: '#F59E0B', size: 6 },
-  { left: '45%', delay: '0.22s', color: '#14B8A6', size: 7 },
-  { left: '62%', delay: '0.08s', color: '#F43F5E', size: 5 },
-  { left: '80%', delay: '0.18s', color: '#4F46E5', size: 8 },
-  { left: '35%', delay: '0.32s', color: '#C4B5FD', size: 6 },
+  { left: '8%',  delay: '0s',    dur: '1.6s', color: '#7C3AED', size: 8 },
+  { left: '22%', delay: '0.12s', dur: '1.9s', color: '#F59E0B', size: 6 },
+  { left: '45%', delay: '0.22s', dur: '1.7s', color: '#14B8A6', size: 7 },
+  { left: '62%', delay: '0.08s', dur: '2.0s', color: '#F43F5E', size: 5 },
+  { left: '80%', delay: '0.18s', dur: '1.8s', color: '#4F46E5', size: 8 },
+  { left: '35%', delay: '0.32s', dur: '1.5s', color: '#C4B5FD', size: 6 },
 ]
 
 function getPackagePrice(pkg: RCPackage): string {
@@ -263,17 +263,15 @@ export function PurchaseScreen({
           {CONFETTI.map((c, i) => (
             <div
               key={i}
-              className="lumio-particle-rise"
               style={{
-                position:          'absolute',
-                bottom:            '15%',
-                left:              c.left,
-                width:             c.size,
-                height:            c.size,
-                borderRadius:      '50%',
-                background:        c.color,
-                animationDelay:    c.delay,
-                animationDuration: '1.8s',
+                position:  'absolute',
+                bottom:    '15%',
+                left:      c.left,
+                width:     c.size,
+                height:    c.size,
+                borderRadius: '50%',
+                background: c.color,
+                animation: `lumio-particle-rise ${c.dur} ${c.delay} ease-out forwards`,
               }}
             />
           ))}
