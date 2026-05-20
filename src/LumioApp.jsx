@@ -2532,7 +2532,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             return result;
           }}
           onClose={() => setShowPurchaseScreen(false)}
-          companionAssetPath={companion.assetPath}
+          config={companion.config}
         />
       )}
     </div>

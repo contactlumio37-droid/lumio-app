@@ -1,153 +1,147 @@
 import { useEffect, useState } from 'react'
+import type { CompanionConfig } from '../../services/companionService'
+import { CompanionAvatar } from '../companion/CompanionAvatar'
 import { RCPackage, RCOfferings } from '../../services/revenuecatService'
 
 interface Props {
-  accent: string
-  lang?: string
-  offerings: RCOfferings | null
-  loadingOfferings: boolean
-  purchasing: boolean
-  restoring: boolean
+  lang?:             string
+  config?:           CompanionConfig
+  offerings:         RCOfferings | null
+  loadingOfferings:  boolean
+  purchasing:        boolean
+  restoring:         boolean
   onPurchase: (pkg: RCPackage) => Promise<{ success: boolean; entitlementActive: boolean; error?: string }>
-  onRestore: () => Promise<{ success: boolean; entitlementActive: boolean; error?: string }>
-  onClose: () => void
-  companionAssetPath?: string
+  onRestore:  () => Promise<{ success: boolean; entitlementActive: boolean; error?: string }>
+  onClose:    () => void
 }
 
 type Lang = 'fr' | 'en' | 'es' | 'de' | 'it' | 'pt'
 
 const T: Record<Lang, {
-  title: string
-  subtitle: string
-  monthly: string
-  annual: string
-  annualBadge: string
-  cta: string
-  restore: string
-  restoring: string
-  purchasing: string
-  successTitle: string
-  successSub: string
+  title:          string
+  subtitle:       string
+  monthly:        string
+  annual:         string
+  annualBadge:    string
+  cta:            string
+  restore:        string
+  restoring:      string
+  purchasing:     string
+  successTitle:   string
+  successSub:     string
   errorCancelled: string
-  errorGeneric: string
-  cgu: string
-  perMonth: string
-  perYear: string
-  saving: string
+  errorGeneric:   string
+  cgu:            string
+  perMonth:       string
+  perYear:        string
 }> = {
   fr: {
-    title: 'Lumio+',
-    subtitle: 'Débloque tout. Vis mieux.',
-    monthly: 'Mensuel',
-    annual: 'Annuel',
-    annualBadge: '−37%',
-    cta: 'Commencer',
-    restore: 'Restaurer mes achats',
-    restoring: 'Restauration…',
-    purchasing: 'Traitement…',
-    successTitle: 'Bienvenue dans Lumio+ !',
-    successSub: 'Ton abonnement est actif.',
+    title:          'Lumio+',
+    subtitle:       'Débloque tout. Vis mieux.',
+    monthly:        'Mensuel',
+    annual:         'Annuel',
+    annualBadge:    '−37%',
+    cta:            'Commencer',
+    restore:        'Restaurer mes achats',
+    restoring:      'Restauration…',
+    purchasing:     'Traitement…',
+    successTitle:   'Bienvenue dans Lumio+ !',
+    successSub:     'Ton abonnement est actif.',
     errorCancelled: 'Achat annulé.',
-    errorGeneric: 'Une erreur est survenue. Réessaie.',
-    cgu: 'Conditions générales · Politique de confidentialité',
-    perMonth: '/mois',
-    perYear: '/an',
-    saving: 'économise',
+    errorGeneric:   'Une erreur est survenue. Réessaie.',
+    cgu:            'Conditions générales · Politique de confidentialité',
+    perMonth:       '/mois',
+    perYear:        '/an',
   },
   en: {
-    title: 'Lumio+',
-    subtitle: 'Unlock everything. Live better.',
-    monthly: 'Monthly',
-    annual: 'Annual',
-    annualBadge: '−37%',
-    cta: 'Get started',
-    restore: 'Restore purchases',
-    restoring: 'Restoring…',
-    purchasing: 'Processing…',
-    successTitle: 'Welcome to Lumio+!',
-    successSub: 'Your subscription is active.',
+    title:          'Lumio+',
+    subtitle:       'Unlock everything. Live better.',
+    monthly:        'Monthly',
+    annual:         'Annual',
+    annualBadge:    '−37%',
+    cta:            'Get started',
+    restore:        'Restore purchases',
+    restoring:      'Restoring…',
+    purchasing:     'Processing…',
+    successTitle:   'Welcome to Lumio+!',
+    successSub:     'Your subscription is active.',
     errorCancelled: 'Purchase cancelled.',
-    errorGeneric: 'An error occurred. Please try again.',
-    cgu: 'Terms of service · Privacy policy',
-    perMonth: '/mo',
-    perYear: '/yr',
-    saving: 'save',
+    errorGeneric:   'An error occurred. Please try again.',
+    cgu:            'Terms of service · Privacy policy',
+    perMonth:       '/mo',
+    perYear:        '/yr',
   },
   es: {
-    title: 'Lumio+',
-    subtitle: 'Desbloquea todo. Vive mejor.',
-    monthly: 'Mensual',
-    annual: 'Anual',
-    annualBadge: '−37%',
-    cta: 'Comenzar',
-    restore: 'Restaurar compras',
-    restoring: 'Restaurando…',
-    purchasing: 'Procesando…',
-    successTitle: '¡Bienvenido a Lumio+!',
-    successSub: 'Tu suscripción está activa.',
+    title:          'Lumio+',
+    subtitle:       'Desbloquea todo. Vive mejor.',
+    monthly:        'Mensual',
+    annual:         'Anual',
+    annualBadge:    '−37%',
+    cta:            'Comenzar',
+    restore:        'Restaurar compras',
+    restoring:      'Restaurando…',
+    purchasing:     'Procesando…',
+    successTitle:   '¡Bienvenido a Lumio+!',
+    successSub:     'Tu suscripción está activa.',
     errorCancelled: 'Compra cancelada.',
-    errorGeneric: 'Ocurrió un error. Inténtalo de nuevo.',
-    cgu: 'Términos de servicio · Política de privacidad',
-    perMonth: '/mes',
-    perYear: '/año',
-    saving: 'ahorra',
+    errorGeneric:   'Ocurrió un error. Inténtalo de nuevo.',
+    cgu:            'Términos de servicio · Política de privacidad',
+    perMonth:       '/mes',
+    perYear:        '/año',
   },
   de: {
-    title: 'Lumio+',
-    subtitle: 'Alles freischalten. Besser leben.',
-    monthly: 'Monatlich',
-    annual: 'Jährlich',
-    annualBadge: '−37%',
-    cta: 'Loslegen',
-    restore: 'Käufe wiederherstellen',
-    restoring: 'Wiederherstellung…',
-    purchasing: 'Verarbeitung…',
-    successTitle: 'Willkommen bei Lumio+!',
-    successSub: 'Dein Abonnement ist aktiv.',
+    title:          'Lumio+',
+    subtitle:       'Alles freischalten. Besser leben.',
+    monthly:        'Monatlich',
+    annual:         'Jährlich',
+    annualBadge:    '−37%',
+    cta:            'Loslegen',
+    restore:        'Käufe wiederherstellen',
+    restoring:      'Wiederherstellung…',
+    purchasing:     'Verarbeitung…',
+    successTitle:   'Willkommen bei Lumio+!',
+    successSub:     'Dein Abonnement ist aktiv.',
     errorCancelled: 'Kauf abgebrochen.',
-    errorGeneric: 'Ein Fehler ist aufgetreten. Versuche es erneut.',
-    cgu: 'Nutzungsbedingungen · Datenschutzrichtlinie',
-    perMonth: '/Monat',
-    perYear: '/Jahr',
-    saving: 'spare',
+    errorGeneric:   'Ein Fehler ist aufgetreten. Versuche es erneut.',
+    cgu:            'Nutzungsbedingungen · Datenschutzrichtlinie',
+    perMonth:       '/Monat',
+    perYear:        '/Jahr',
   },
   it: {
-    title: 'Lumio+',
-    subtitle: 'Sblocca tutto. Vivi meglio.',
-    monthly: 'Mensile',
-    annual: 'Annuale',
-    annualBadge: '−37%',
-    cta: 'Inizia',
-    restore: 'Ripristina acquisti',
-    restoring: 'Ripristino…',
-    purchasing: 'Elaborazione…',
-    successTitle: 'Benvenuto in Lumio+!',
-    successSub: 'Il tuo abbonamento è attivo.',
+    title:          'Lumio+',
+    subtitle:       'Sblocca tutto. Vivi meglio.',
+    monthly:        'Mensile',
+    annual:         'Annuale',
+    annualBadge:    '−37%',
+    cta:            'Inizia',
+    restore:        'Ripristina acquisti',
+    restoring:      'Ripristino…',
+    purchasing:     'Elaborazione…',
+    successTitle:   'Benvenuto in Lumio+!',
+    successSub:     'Il tuo abbonamento è attivo.',
     errorCancelled: 'Acquisto annullato.',
-    errorGeneric: 'Si è verificato un errore. Riprova.',
-    cgu: 'Termini di servizio · Informativa sulla privacy',
-    perMonth: '/mese',
-    perYear: '/anno',
-    saving: 'risparmia',
+    errorGeneric:   'Si è verificato un errore. Riprova.',
+    cgu:            'Termini di servizio · Informativa sulla privacy',
+    perMonth:       '/mese',
+    perYear:        '/anno',
   },
   pt: {
-    title: 'Lumio+',
-    subtitle: 'Desbloqueie tudo. Viva melhor.',
-    monthly: 'Mensal',
-    annual: 'Anual',
-    annualBadge: '−37%',
-    cta: 'Começar',
-    restore: 'Restaurar compras',
-    restoring: 'Restaurando…',
-    purchasing: 'Processando…',
-    successTitle: 'Bem-vindo ao Lumio+!',
-    successSub: 'Sua assinatura está ativa.',
+    title:          'Lumio+',
+    subtitle:       'Desbloqueie tudo. Viva melhor.',
+    monthly:        'Mensal',
+    annual:         'Anual',
+    annualBadge:    '−37%',
+    cta:            'Começar',
+    restore:        'Restaurar compras',
+    restoring:      'Restaurando…',
+    purchasing:     'Processando…',
+    successTitle:   'Bem-vindo ao Lumio+!',
+    successSub:     'Sua assinatura está ativa.',
     errorCancelled: 'Compra cancelada.',
-    errorGeneric: 'Ocorreu um erro. Tente novamente.',
-    cgu: 'Termos de serviço · Política de privacidade',
-    perMonth: '/mês',
-    perYear: '/ano',
-    saving: 'economize',
+    errorGeneric:   'Ocorreu um erro. Tente novamente.',
+    cgu:            'Termos de serviço · Política de privacidade',
+    perMonth:       '/mês',
+    perYear:        '/ano',
   },
 }
 
@@ -159,6 +153,15 @@ const FEATURES: Record<Lang, string[]> = {
   it: ['Indicatori illimitati', 'Obiettivi illimitati', 'Diario illimitato', 'Modalità Flusso', 'Grafici annuali', 'Tutti i temi', 'Export CSV/PDF', 'Insight quotidiani'],
   pt: ['Indicadores ilimitados', 'Objetivos ilimitados', 'Diário ilimitado', 'Modo Fluxo', 'Gráficos anuais', 'Todos os temas', 'Exportar CSV/PDF', 'Insights diários'],
 }
+
+const CONFETTI = [
+  { left: '8%',  delay: '0s',    color: '#7C3AED', size: 8 },
+  { left: '22%', delay: '0.12s', color: '#F59E0B', size: 6 },
+  { left: '45%', delay: '0.22s', color: '#14B8A6', size: 7 },
+  { left: '62%', delay: '0.08s', color: '#F43F5E', size: 5 },
+  { left: '80%', delay: '0.18s', color: '#4F46E5', size: 8 },
+  { left: '35%', delay: '0.32s', color: '#C4B5FD', size: 6 },
+]
 
 function getPackagePrice(pkg: RCPackage): string {
   try {
@@ -178,8 +181,8 @@ function isAnnualPackage(pkg: RCPackage): boolean {
 }
 
 export function PurchaseScreen({
-  accent,
   lang = 'fr',
+  config,
   offerings,
   loadingOfferings,
   purchasing,
@@ -187,17 +190,21 @@ export function PurchaseScreen({
   onPurchase,
   onRestore,
   onClose,
-  companionAssetPath,
 }: Props) {
-  const l = (['fr', 'en', 'es', 'de', 'it', 'pt'].includes(lang) ? lang : 'fr') as Lang
-  const t = T[l]
-  const features = FEATURES[l]
-
+  const [visible,  setVisible]  = useState(false)
   const [selected, setSelected] = useState<RCPackage | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [error,    setError]    = useState<string | null>(null)
+  const [success,  setSuccess]  = useState(false)
 
+  const l        = (['fr', 'en', 'es', 'de', 'it', 'pt'].includes(lang) ? lang : 'fr') as Lang
+  const t        = T[l]
+  const features = FEATURES[l]
   const packages: RCPackage[] = offerings?.current?.availablePackages ?? []
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setVisible(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
   useEffect(() => {
     if (packages.length > 0 && !selected) {
@@ -231,15 +238,80 @@ export function PurchaseScreen({
 
   if (success) {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 24 }}>
-        <div style={{ background: '#1a1a2e', borderRadius: 24, padding: '40px 28px', textAlign: 'center', maxWidth: 360, width: '100%' }}>
-          {companionAssetPath && (
-            <img src={companionAssetPath} alt="" style={{ width: 100, height: 100, objectFit: 'contain', marginBottom: 16 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          )}
-          <div style={{ fontSize: 36, marginBottom: 12 }}>✦</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: accent, marginBottom: 8 }}>{t.successTitle}</div>
-          <div style={{ fontSize: 14, opacity: 0.65, color: '#fff', marginBottom: 28 }}>{t.successSub}</div>
-          <button onClick={onClose} style={{ width: '100%', padding: '14px', borderRadius: 16, border: 'none', background: accent, color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
+      <div style={{
+        position:       'fixed',
+        inset:          0,
+        background:     'rgba(6,4,15,0.9)',
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'center',
+        zIndex:         1100,
+        padding:        24,
+      }}>
+        <div style={{
+          background:   '#12101f',
+          borderRadius: 24,
+          padding:      '40px 28px',
+          textAlign:    'center',
+          maxWidth:     360,
+          width:        '100%',
+          position:     'relative',
+          overflow:     'hidden',
+          border:       '1px solid rgba(124,58,237,0.2)',
+        }}>
+          {/* Confetti particles */}
+          {CONFETTI.map((c, i) => (
+            <div
+              key={i}
+              className="lumio-particle-rise"
+              style={{
+                position:          'absolute',
+                bottom:            '15%',
+                left:              c.left,
+                width:             c.size,
+                height:            c.size,
+                borderRadius:      '50%',
+                background:        c.color,
+                animationDelay:    c.delay,
+                animationDuration: '1.8s',
+              }}
+            />
+          ))}
+
+          {config
+            ? <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <CompanionAvatar config={{ ...config, state: 'proud' }} size="xl" />
+              </div>
+            : <div style={{ fontSize: 48, marginBottom: 16 }}>✦</div>
+          }
+
+          <div style={{
+            fontSize:    22,
+            fontWeight:  800,
+            background:  'linear-gradient(135deg, #7C3AED, #4F46E5)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: 8,
+            fontFamily:  'Syne, sans-serif',
+          }}>
+            {t.successTitle}
+          </div>
+          <div style={{ fontSize: 14, color: '#C4B5FD', marginBottom: 28 }}>{t.successSub}</div>
+          <button
+            onClick={onClose}
+            style={{
+              width:         '100%',
+              padding:       '14px',
+              borderRadius:  16,
+              border:        'none',
+              background:    'linear-gradient(135deg, #7C3AED, #4F46E5)',
+              color:         '#fff',
+              fontWeight:    800,
+              fontSize:      15,
+              cursor:        'pointer',
+              fontFamily:    'Syne, sans-serif',
+            }}
+          >
             OK
           </button>
         </div>
@@ -248,20 +320,74 @@ export function PurchaseScreen({
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1100, padding: '0 0 env(safe-area-inset-bottom, 0)' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: '#1a1a2e', borderRadius: '24px 24px 0 0', padding: '28px 20px 32px', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '90vh', overflowY: 'auto' }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 4 }}>✦</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: accent }}>{t.title}</div>
-          <div style={{ fontSize: 14, opacity: 0.6, color: '#fff', marginTop: 4 }}>{t.subtitle}</div>
+    <div
+      onClick={onClose}
+      style={{
+        position:       'fixed',
+        inset:          0,
+        background:     visible ? 'rgba(6,4,15,0.9)' : 'rgba(6,4,15,0)',
+        display:        'flex',
+        alignItems:     'flex-end',
+        justifyContent: 'center',
+        zIndex:         1100,
+        padding:        '0 0 env(safe-area-inset-bottom, 0)',
+        transition:     'background 0.3s',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width:         '100%',
+          maxWidth:      480,
+          background:    '#12101f',
+          borderRadius:  '24px 24px 0 0',
+          border:        '1px solid rgba(124,58,237,0.15)',
+          borderBottom:  'none',
+          padding:       '0 20px 32px',
+          display:       'flex',
+          flexDirection: 'column',
+          gap:           16,
+          maxHeight:     '90vh',
+          overflowY:     'auto',
+          transform:     visible ? 'translateY(0)' : 'translateY(100%)',
+          transition:    'transform 0.35s cubic-bezier(0.32,0.72,0,1)',
+        }}
+      >
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: 'rgba(196,181,253,0.2)' }} />
         </div>
 
-        {/* Features list */}
+        {/* Header */}
+        <div style={{ textAlign: 'center' }}>
+          {config && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <CompanionAvatar config={config} size="lg" />
+            </div>
+          )}
+          <div style={{
+            fontSize:    22,
+            fontWeight:  800,
+            background:  'linear-gradient(135deg, #7C3AED, #4F46E5)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontFamily:  'Syne, sans-serif',
+          }}>
+            {t.title}
+          </div>
+          <div style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>{t.subtitle}</div>
+        </div>
+
+        {/* Feature list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {features.map((f, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#fff', opacity: 0.85 }}>
-              <span style={{ color: accent, fontWeight: 800 }}>✓</span>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#EDE9FE', opacity: 0.85 }}>
+              <span style={{
+                color:       '#7C3AED',
+                fontWeight:  800,
+                fontFamily:  'Syne, sans-serif',
+                fontSize:    14,
+              }}>✓</span>
               {f}
             </div>
           ))}
@@ -269,21 +395,31 @@ export function PurchaseScreen({
 
         {/* Plans */}
         {loadingOfferings ? (
-          <div style={{ textAlign: 'center', opacity: 0.5, color: '#fff', fontSize: 14, padding: '12px 0' }}>…</div>
+          <div style={{ textAlign: 'center', color: '#6B7280', fontSize: 14, padding: '12px 0' }}>…</div>
         ) : packages.length === 0 ? (
-          /* Fallback static prices when no offerings loaded */
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { label: t.annual, price: '59,99€', per: t.perYear, badge: t.annualBadge, isAnnual: true },
-              { label: t.monthly, price: '7,99€', per: t.perMonth, badge: null, isAnnual: false },
+              { label: t.annual,  price: '59,99€', per: t.perYear,  badge: t.annualBadge, isAnnual: true  },
+              { label: t.monthly, price: '7,99€',  per: t.perMonth, badge: null,          isAnnual: false },
             ].map(opt => (
-              <div key={opt.label} style={{ padding: '14px 16px', borderRadius: 14, border: `2px solid ${accent}${opt.isAnnual ? 'ff' : '44'}`, background: opt.isAnnual ? `${accent}18` : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div
+                key={opt.label}
+                style={{
+                  padding:         '14px 16px',
+                  borderRadius:    14,
+                  border:          `2px solid ${opt.isAnnual ? '#7C3AED' : 'rgba(124,58,237,0.25)'}`,
+                  background:      opt.isAnnual ? 'rgba(124,58,237,0.1)' : 'transparent',
+                  display:         'flex',
+                  alignItems:      'center',
+                  justifyContent:  'space-between',
+                }}
+              >
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{opt.label}</div>
-                  {opt.badge && <div style={{ fontSize: 11, color: accent, fontWeight: 700, marginTop: 2 }}>{opt.badge}</div>}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#EDE9FE' }}>{opt.label}</div>
+                  {opt.badge && <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 700, marginTop: 2 }}>{opt.badge}</div>}
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: opt.isAnnual ? accent : '#fff' }}>
-                  {opt.price}<span style={{ fontSize: 11, fontWeight: 400 }}>{opt.per}</span>
+                <div style={{ fontSize: 16, fontWeight: 800, color: opt.isAnnual ? '#7C3AED' : '#EDE9FE', fontFamily: 'Syne, sans-serif' }}>
+                  {opt.price}<span style={{ fontSize: 11, fontWeight: 400, color: '#6B7280' }}>{opt.per}</span>
                 </div>
               </div>
             ))}
@@ -291,16 +427,29 @@ export function PurchaseScreen({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {packages.map((pkg: RCPackage, i: number) => {
-              const isAnnual = isAnnualPackage(pkg)
+              const isAnnual   = isAnnualPackage(pkg)
               const isSelected = selected === pkg
               return (
-                <div key={i} onClick={() => setSelected(pkg)} style={{ padding: '14px 16px', borderRadius: 14, border: `2px solid ${isSelected ? accent : accent + '44'}`, background: isSelected ? `${accent}18` : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div
+                  key={i}
+                  onClick={() => setSelected(pkg)}
+                  style={{
+                    padding:        '14px 16px',
+                    borderRadius:   14,
+                    border:         `2px solid ${isSelected ? '#7C3AED' : 'rgba(124,58,237,0.25)'}`,
+                    background:     isSelected ? 'rgba(124,58,237,0.1)' : 'transparent',
+                    cursor:         'pointer',
+                    display:        'flex',
+                    alignItems:     'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{isAnnual ? t.annual : t.monthly}</div>
-                    {isAnnual && <div style={{ fontSize: 11, color: accent, fontWeight: 700, marginTop: 2 }}>{t.annualBadge}</div>}
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#EDE9FE' }}>{isAnnual ? t.annual : t.monthly}</div>
+                    {isAnnual && <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 700, marginTop: 2 }}>{t.annualBadge}</div>}
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: isSelected ? accent : '#fff' }}>
-                    {getPackagePrice(pkg)}<span style={{ fontSize: 11, fontWeight: 400 }}>{isAnnual ? t.perYear : t.perMonth}</span>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: isSelected ? '#7C3AED' : '#EDE9FE', fontFamily: 'Syne, sans-serif' }}>
+                    {getPackagePrice(pkg)}<span style={{ fontSize: 11, fontWeight: 400, color: '#6B7280' }}>{isAnnual ? t.perYear : t.perMonth}</span>
                   </div>
                 </div>
               )
@@ -308,13 +457,25 @@ export function PurchaseScreen({
           </div>
         )}
 
-        {error && <div style={{ color: '#ff6b6b', fontSize: 13, textAlign: 'center' }}>{error}</div>}
+        {error && <div style={{ color: '#F43F5E', fontSize: 13, textAlign: 'center' }}>{error}</div>}
 
         {/* CTA */}
         <button
           onClick={handlePurchase}
           disabled={purchasing || restoring || (!selected && packages.length > 0)}
-          style={{ padding: '15px', borderRadius: 16, border: 'none', background: accent, color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit', opacity: purchasing || restoring ? 0.6 : 1 }}
+          style={{
+            padding:       '15px',
+            borderRadius:  16,
+            border:        'none',
+            background:    'linear-gradient(135deg, #7C3AED, #4F46E5)',
+            color:         '#fff',
+            fontWeight:    800,
+            fontSize:      15,
+            cursor:        'pointer',
+            fontFamily:    'Syne, sans-serif',
+            opacity:       purchasing || restoring ? 0.6 : 1,
+            letterSpacing: '0.03em',
+          }}
         >
           {purchasing ? t.purchasing : t.cta}
         </button>
@@ -323,13 +484,21 @@ export function PurchaseScreen({
         <button
           onClick={handleRestore}
           disabled={purchasing || restoring}
-          style={{ padding: '10px', border: 'none', background: 'transparent', color: '#fff', opacity: 0.45, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+          style={{
+            padding:    '10px',
+            border:     'none',
+            background: 'transparent',
+            color:      '#6B7280',
+            fontSize:   13,
+            cursor:     'pointer',
+            fontFamily: 'DM Sans, sans-serif',
+          }}
         >
           {restoring ? t.restoring : t.restore}
         </button>
 
         {/* CGU */}
-        <div style={{ fontSize: 10, opacity: 0.3, color: '#fff', textAlign: 'center', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center', lineHeight: 1.5, opacity: 0.6 }}>
           {t.cgu}
         </div>
       </div>
