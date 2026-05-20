@@ -84,7 +84,9 @@ export async function saveCheckout(userId: string, data: CheckoutData): Promise<
   })
 
   // Notif matinale J+1 — fire & forget
-  void scheduleMorningNotification(userId, data.mood_evening)
+  scheduleMorningNotification(userId, data.mood_evening).catch(e =>
+    console.warn('[checkout] scheduleMorningNotification failed:', e),
+  )
 }
 
 async function scheduleMorningNotification(

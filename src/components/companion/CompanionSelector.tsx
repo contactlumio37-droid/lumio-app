@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase'
 import type { Animal } from '../../services/companionService'
-import { getCompanionConfig, STATE_COLORS } from '../../services/companionService'
+import { getCompanionConfig, STATE_COLORS, saveCompanionAnimal } from '../../services/companionService'
 import { CompanionAvatar } from './CompanionAvatar'
 
 // Showcase state par animal → couleurs variées dans la grille
@@ -33,7 +32,7 @@ export function CompanionSelector({ userId, onSelect }: Props) {
   async function handleConfirm() {
     if (!selected) return
     setSaving(true)
-    await supabase.from('profiles').update({ companion_animal: selected }).eq('id', userId)
+    await saveCompanionAnimal(userId, selected)
     setSaving(false)
     onSelect(selected)
   }

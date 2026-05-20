@@ -1,4 +1,5 @@
 import type { DailySnapshot } from './checkoutService'
+import { supabase } from '../lib/supabase'
 
 // ─── Types exportés ────────────────────────────────────────────────────────────
 
@@ -231,4 +232,13 @@ export function getCompanionConfig(
 /** Chemin asset PNG (fallback si emoji non suffisant). */
 export function getCompanionAssetPath(animal: Animal, state: CompanionState): string {
   return `/companions/${animal}/${state}.png`
+}
+
+/** Persiste le choix d'animal du compagnon dans profiles. */
+export async function saveCompanionAnimal(userId: string, animal: Animal): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ companion_animal: animal })
+    .eq('id', userId)
+  if (error) throw new Error(error.message)
 }

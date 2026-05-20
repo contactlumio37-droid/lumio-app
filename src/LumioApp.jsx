@@ -1983,7 +1983,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   const plan = isPlus ? "premium" : "free";
   const planData = usePlan(isPlus);
   const [showPurchaseScreen, setShowPurchaseScreen] = useState(false);
-  const purchaseHook = usePurchase(userId);
+  const purchaseHook = usePurchase(userId, () => setPlanOverride("paid"));
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showRoadmapModal, setShowRoadmapModal] = useState(false);
@@ -2302,9 +2302,9 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             {pulse.active && pulse.triggerType && (
               <PulseNotice
                 triggerType={pulse.triggerType}
-                animal={companion.animal}
-                accent={accent}
+                config={companion.config}
                 lang={lang}
+                pulseMessage={pulse.pulseMessage}
                 onTalk={() => { pulse.dismiss(); setTab("journal"); }}
                 onDismiss={pulse.dismiss}
               />
@@ -2532,7 +2532,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             return result;
           }}
           onClose={() => setShowPurchaseScreen(false)}
-          companionAssetPath={companion.assetPath}
+          config={companion.config}
         />
       )}
     </div>

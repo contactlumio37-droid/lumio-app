@@ -1,4 +1,5 @@
-const REVENUECAT_WEBHOOK_AUTH_HEADER = 'X-RevenueCat-Signature'
+// RevenueCat webhook — updates profiles.plan on subscription lifecycle events.
+// Signature: HMAC-SHA256 of the raw request body, sent in X-RevenueCat-Signature.
 
 const PLUS_EVENTS = new Set([
   'INITIAL_PURCHASE',
@@ -11,15 +12,16 @@ const FREE_EVENTS = new Set([
   'CANCELLATION',
   'EXPIRATION',
   'BILLING_ISSUE',
-  'SUBSCRIBER_ALIAS',
 ])
 
-interface RevenueCatWebhookPayload {
-  event: {
-    type: string
-    app_user_id: string
-    original_app_user_id?: string
-  }
+interface RCEvent {
+  type:                   string
+  app_user_id:            string
+  original_app_user_id?:  string
+}
+
+interface RCWebhookPayload {
+  event: RCEvent
 }
 
 async function verifySignature(body: string, signature: string, secret: string): Promise<boolean> {
@@ -29,14 +31,14 @@ async function verifySignature(body: string, signature: string, secret: string):
     enc.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['sign'],
   )
   const sigBytes = await crypto.subtle.sign('HMAC', key, enc.encode(body))
   const expected = Array.from(new Uint8Array(sigBytes))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
 
-  // Timing-safe byte-by-byte comparison
+  // Timing-safe comparison
   const a = enc.encode(expected)
   const b = enc.encode(signature)
   if (a.length !== b.length) return false
@@ -45,69 +47,77 @@ async function verifySignature(body: string, signature: string, secret: string):
   return diff === 0
 }
 
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 Deno.serve(async (req: Request) => {
-  if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 })
-  }
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
 
   const webhookSecret = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
   if (!webhookSecret) {
-    console.error('REVENUECAT_WEBHOOK_SECRET non configuré')
+    console.error('[rc-webhook] REVENUECAT_WEBHOOK_SECRET not set')
     return new Response('Configuration error', { status: 500 })
   }
 
-  const signature = req.headers.get(REVENUECAT_WEBHOOK_AUTH_HEADER)
-  if (!signature) {
-    return new Response('Signature manquante', { status: 401 })
-  }
+  const signature = req.headers.get('X-RevenueCat-Signature')
+  if (!signature) return new Response('Signature manquante', { status: 401 })
 
   const rawBody = await req.text()
   if (!await verifySignature(rawBody, signature, webhookSecret)) {
     return new Response('Signature invalide', { status: 401 })
   }
 
-  let payload: RevenueCatWebhookPayload
+  let payload: RCWebhookPayload
   try {
     payload = JSON.parse(rawBody)
   } catch {
     return new Response('JSON invalide', { status: 400 })
   }
 
-  const { type: eventType, app_user_id } = payload.event
+  const { type: eventType, app_user_id, original_app_user_id } = payload.event
 
   let newPlan: 'free' | 'plus' | null = null
-  if (PLUS_EVENTS.has(eventType)) {
-    newPlan = 'plus'
-  } else if (FREE_EVENTS.has(eventType)) {
-    newPlan = 'free'
-  } else {
-    return new Response(JSON.stringify({ ignored: true, type: eventType }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+  if (PLUS_EVENTS.has(eventType))      newPlan = 'plus'
+  else if (FREE_EVENTS.has(eventType)) newPlan = 'free'
+  else return json({ ignored: true, type: eventType })
 
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
   const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    Deno.env.get('SUPABASE_URL')              ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
   )
 
-  const { error } = await supabaseAdmin
-    .from('profiles')
-    .update({ plan: newPlan, revenuecat_id: app_user_id })
-    .eq('revenuecat_id', app_user_id)
-
-  if (error) {
-    console.error('Erreur mise à jour plan :', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  // RevenueCat app_user_id = Supabase user id (set via initRevenueCat(userId)).
+  // Try matching by supabase id first; fall back to revenuecat_id column for
+  // aliased / legacy users. Also try original_app_user_id as last resort.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const candidates = [...new Set([app_user_id, original_app_user_id].filter(Boolean))]
+    .filter(c => UUID_RE.test(c)) as string[]
+  if (candidates.length === 0) {
+    console.warn(`[rc-webhook] app_user_id is not a UUID: ${app_user_id}`)
+    return json({ ok: false, reason: 'invalid_ids' }, 400)
   }
 
-  return new Response(JSON.stringify({ success: true, plan: newPlan }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  let updated = false
+  for (const candidate of candidates) {
+    const { count } = await supabaseAdmin
+      .from('profiles')
+      .update({ plan: newPlan, revenuecat_id: app_user_id })
+      .or(`id.eq.${candidate},revenuecat_id.eq.${candidate}`)
+      .select('id', { count: 'exact', head: true })
+
+    if ((count ?? 0) > 0) { updated = true; break }
+  }
+
+  if (!updated) {
+    console.warn(`[rc-webhook] No profile matched for app_user_id=${app_user_id}`)
+    // Return 200 so RevenueCat does not retry indefinitely
+    return json({ ok: true, updated: false, plan: newPlan })
+  }
+
+  return json({ ok: true, updated: true, plan: newPlan })
 })
