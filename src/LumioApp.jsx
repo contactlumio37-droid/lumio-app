@@ -18,6 +18,7 @@ import { PaywallBadge } from "./components/paywall/PaywallBadge";
 import { PlanComparison } from "./components/paywall/PlanComparison";
 import { PurchaseScreen } from "./components/paywall/PurchaseScreen";
 import { initRevenueCat } from "./services/revenuecatService";
+import { BottomNav } from "./components/nav/BottomNav";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -1969,6 +1970,8 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   const [tab, setTab] = useState(() => {
     try { return sessionStorage.getItem("lumio_tab") || "home"; } catch { return "home"; }
   });
+  const prevTabRef = useRef(tab);
+  const [tabDir, setTabDir] = useState("");
 
   const [lang, setLang] = useState(ls.lang || "fr");
   const [theme, setTheme] = useState(ls.theme || "dark");
@@ -2207,7 +2210,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     minHeight: "100vh",
     background: th.bg,
     color: th.text,
-    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+    fontFamily: "'DM Sans', ui-sans-serif, system-ui, sans-serif",
     paddingBottom: 88,
   };
 
@@ -2225,17 +2228,26 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     { id: "settings", label: t.nav.settings, icon: "⚙️" },
     ...(role === "admin" ? [{ id: "admin", label: "Admin", icon: "🔧" }] : []),
   ];
+  const navOrder = navItems.map(i => i.id);
+
+  function handleTabChange(newTab) {
+    const prevIdx = navOrder.indexOf(prevTabRef.current);
+    const nextIdx = navOrder.indexOf(newTab);
+    setTabDir(nextIdx >= prevIdx ? "lumio-step-fwd" : "lumio-step-bwd");
+    prevTabRef.current = newTab;
+    setTab(newTab);
+  }
 
   const checkoutBtn = !checkoutDone ? (
     <button
-      onClick={() => setTab("checkout")}
+      onClick={() => handleTabChange("checkout")}
       style={{
         width: "100%", padding: "14px", marginBottom: 16,
         borderRadius: 16, border: "none",
-        background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
+        background: "linear-gradient(135deg, #7C3AED, #4F46E5)",
         color: "#fff", fontWeight: 800, fontSize: 15,
-        cursor: "pointer", fontFamily: "inherit",
-        boxShadow: `0 4px 20px ${accent}44`,
+        cursor: "pointer", fontFamily: "'Syne', sans-serif",
+        boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
       }}
     >
       🌙 Checkout du soir
@@ -2253,7 +2265,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
 
   return (
     <div style={rootStyle}>
-      <div style={pageWrapStyle}>
+      <div key={tab} className={tabDir} style={pageWrapStyle}>
         {tab === "home" && (
           <>
             {/* Header home : salutation + CompanionBadge */}
@@ -2276,7 +2288,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
                   config={companion.config}
                   streak={companion.streak}
                   checkoutDone={checkoutDone}
-                  onCheckout={() => setTab("checkout")}
+                  onCheckout={() => handleTabChange("checkout")}
                 />
               </div>
             )}
@@ -2305,7 +2317,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
                 config={companion.config}
                 lang={lang}
                 pulseMessage={pulse.pulseMessage}
-                onTalk={() => { pulse.dismiss(); setTab("journal"); }}
+                onTalk={() => { pulse.dismiss(); handleTabChange("journal"); }}
                 onDismiss={pulse.dismiss}
               />
             )}
@@ -2334,7 +2346,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
           <CheckoutScreen
             accent={accent}
             lang={lang}
-            onComplete={() => { setCheckoutDone(true); companion.refresh(); setTab("home"); }}
+            onComplete={() => { setCheckoutDone(true); companion.refresh(); handleTabChange("home"); }}
           />
         )}
 
@@ -2416,7 +2428,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
 
         {tab === "admin" && role === "admin" && (
           <Admin
-            onBack={() => setTab("home")}
+            onBack={() => handleTabChange("home")}
             roadmap={roadmap}
             setRoadmap={setRoadmap}
             th={th}
@@ -2427,55 +2439,13 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
         )}
       </div>
 
-      <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          borderTop: `1px solid ${th.border}`,
-          background: th.navBg,
-          backdropFilter: "blur(16px)",
-          zIndex: 200,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 460,
-            margin: "0 auto",
-            padding: "8px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
-            display: "grid",
-            gridTemplateColumns: `repeat(${navItems.length}, 1fr)`,
-            gap: 6,
-          }}
-        >
-          {navItems.map((item) => {
-            const active = tab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setTab(item.id)}
-                style={{
-                  border: "none",
-                  background: active ? accent + "22" : "transparent",
-                  color: active ? accent : th.text3,
-                  borderRadius: 14,
-                  padding: "8px 4px",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <span style={{ fontSize: 18 }}>{item.icon}</span>
-                <span style={{ fontSize: 11, fontWeight: active ? 800 : 600 }}>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <BottomNav
+        items={navItems}
+        activeTab={tab}
+        onTabChange={handleTabChange}
+        navBg={th.navBg}
+        border={th.border}
+      />
 
       {showAd && (
         <AdPopup
