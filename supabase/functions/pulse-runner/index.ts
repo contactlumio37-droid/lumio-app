@@ -204,10 +204,17 @@ const TRIGGER_FUNCTIONS: Record<TriggerType, string> = {
   alert_threshold: 'pulse_check_alert',
 }
 
-function pickMessage(trigger: TriggerType, lang: string): { title: string; body: string } {
+function hashStr(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+
+function pickMessage(trigger: TriggerType, lang: string, userId: string): { title: string; body: string } {
   const langKey = (['fr','en','es','de','it','pt'].includes(lang) ? lang : 'fr') as Lang
-  const pool = MESSAGES[trigger][langKey]
-  return pool[Math.floor(Math.random() * pool.length)]
+  const pool    = MESSAGES[trigger][langKey]
+  const today   = new Date().toISOString().slice(0, 10)
+  return pool[hashStr(`${userId}${today}`) % pool.length]
 }
 
 // ── FCM HTTP v1 API ───────────────────────────────────────────────────────────
@@ -259,7 +266,12 @@ async function getFcmAccessToken(sa: FcmServiceAccount): Promise<string> {
   return access_token
 }
 
-async function sendFcmNotification(fcmToken: string, title: string, body: string): Promise<void> {
+async function sendFcmNotificationWithData(
+  fcmToken: string,
+  title: string,
+  body: string,
+  data: Record<string, string> = { type: 'pulse' },
+): Promise<void> {
   const saJson = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
   if (!saJson || !fcmToken) return
 
@@ -285,7 +297,7 @@ async function sendFcmNotification(fcmToken: string, title: string, body: string
           message: {
             token: fcmToken,
             notification: { title, body },
-            data: { type: 'pulse' },
+            data,
           },
         }),
       }
@@ -324,43 +336,53 @@ Deno.serve(async (req: Request) => {
 
   let triggered = 0
   let notifsSent = 0
+  const errors: string[] = []
 
   for (const trigger of TRIGGERS) {
     const fnName = TRIGGER_FUNCTIONS[trigger]
-    const { data: users, error } = await supabase.rpc(fnName)
-    if (error || !users) continue
+    const { data: users, error: rpcErr } = await supabase.rpc(fnName)
+    if (rpcErr) { errors.push(`${trigger}: ${rpcErr.message}`); continue }
+    if (!users) continue
 
     for (const row of users as { user_id: string }[]) {
       const userId = row.user_id
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('language, fcm_token')
-        .eq('id', userId)
-        .single()
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('language, fcm_token')
+          .eq('id', userId)
+          .single()
 
-      const lang = profile?.language ?? 'fr'
-      const fcmToken = profile?.fcm_token ?? null
-      const msg = pickMessage(trigger, lang)
+        const lang     = profile?.language ?? 'fr'
+        const fcmToken = profile?.fcm_token ?? null
+        const msg      = pickMessage(trigger, lang, userId)
 
-      await supabase.from('pulse_log').insert({
-        user_id: userId,
-        trigger_type: trigger,
-        notif_text: msg.body,
-      })
+        await supabase.from('pulse_log').insert({
+          user_id:      userId,
+          trigger_type: trigger,
+          notif_text:   msg.body,
+        })
 
-      await supabase
-        .from('daily_snapshots')
-        .update({ pulse_triggered: true, pulse_type: trigger })
-        .eq('user_id', userId)
-        .eq('date', today)
+        await supabase
+          .from('daily_snapshots')
+          .update({ pulse_triggered: true, pulse_type: trigger })
+          .eq('user_id', userId)
+          .eq('date', today)
 
-      if (fcmToken) {
-        await sendFcmNotification(fcmToken, msg.title, msg.body)
-        notifsSent++
+        if (fcmToken) {
+          // Pour alert_threshold : inclure resource_url dans le data payload
+          const extraData = trigger === 'alert_threshold'
+            ? { type: 'pulse', resource_url: 'resources/mental-health' }
+            : { type: 'pulse' }
+          await sendFcmNotificationWithData(fcmToken, msg.title, msg.body, extraData)
+          notifsSent++
+        }
+
+        triggered++
+      } catch (err) {
+        errors.push(`${trigger}/${userId}: ${String(err)}`)
       }
-
-      triggered++
     }
   }
 
@@ -379,7 +401,7 @@ Deno.serve(async (req: Request) => {
         .single()
 
       if (profile?.fcm_token) {
-        await sendFcmNotification(profile.fcm_token, notif.title, notif.body)
+        await sendFcmNotificationWithData(profile.fcm_token, notif.title, notif.body, { type: 'morning_nudge' })
         notifsSent++
       }
 
@@ -391,7 +413,7 @@ Deno.serve(async (req: Request) => {
   }
 
   return new Response(
-    JSON.stringify({ ok: true, triggered, notifsSent }),
+    JSON.stringify({ ok: true, triggered, sent: notifsSent, errors }),
     { headers: { 'Content-Type': 'application/json' } },
   )
 })

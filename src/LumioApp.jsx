@@ -2302,9 +2302,9 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             {pulse.active && pulse.triggerType && (
               <PulseNotice
                 triggerType={pulse.triggerType}
-                animal={companion.animal}
-                accent={accent}
+                config={companion.config}
                 lang={lang}
+                pulseMessage={pulse.pulseMessage}
                 onTalk={() => { pulse.dismiss(); setTab("journal"); }}
                 onDismiss={pulse.dismiss}
               />
