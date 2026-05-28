@@ -19,12 +19,48 @@ const T = {
   gradCTA: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
 }
 
-// ─── Sous-titres par étape ──────────────────────────────────────────────────────
-const STEP_SUBTITLES: Record<CheckoutStep, string> = {
-  1: 'Comment tu vas ce soir ?',
-  2: 'Ton émotion du moment',
-  3: 'Pose ce que tu portes',
-  4: 'Prépare demain sereinement',
+type Lang = 'fr' | 'en' | 'es' | 'de' | 'it' | 'pt'
+
+const CHECKOUT_T: Record<Lang, {
+  stepSubs: Record<CheckoutStep, string>
+  prevStep: string
+  moodRecorded: string
+  continue: string
+  nothingToDeposit: string
+  saving: string
+  goodnight: string
+  skipPriorities: string
+}> = {
+  fr: {
+    stepSubs: { 1: 'Comment tu vas ce soir ?', 2: 'Ton émotion du moment', 3: 'Pose ce que tu portes', 4: 'Prépare demain sereinement' },
+    prevStep: 'Étape précédente', moodRecorded: 'Humeur enregistrée ✓', continue: 'Continuer →',
+    nothingToDeposit: "Je n'ai rien à poser ce soir", saving: 'Enregistrement…', goodnight: 'Bonne nuit 🌙', skipPriorities: 'Passer les priorités',
+  },
+  en: {
+    stepSubs: { 1: "How are you feeling tonight?", 2: 'Your emotion right now', 3: 'Put down what you carry', 4: 'Prepare tomorrow serenely' },
+    prevStep: 'Previous step', moodRecorded: 'Mood recorded ✓', continue: 'Continue →',
+    nothingToDeposit: "I have nothing to put down tonight", saving: 'Saving…', goodnight: 'Good night 🌙', skipPriorities: 'Skip priorities',
+  },
+  es: {
+    stepSubs: { 1: '¿Cómo estás esta noche?', 2: 'Tu emoción del momento', 3: 'Suelta lo que llevas', 4: 'Prepara el mañana con calma' },
+    prevStep: 'Paso anterior', moodRecorded: 'Estado de ánimo registrado ✓', continue: 'Continuar →',
+    nothingToDeposit: 'No tengo nada que soltar esta noche', saving: 'Guardando…', goodnight: 'Buenas noches 🌙', skipPriorities: 'Saltar prioridades',
+  },
+  de: {
+    stepSubs: { 1: 'Wie geht es dir heute Abend?', 2: 'Deine aktuelle Emotion', 3: 'Leg ab, was du trägst', 4: 'Bereite dich ruhig auf morgen vor' },
+    prevStep: 'Vorheriger Schritt', moodRecorded: 'Stimmung gespeichert ✓', continue: 'Weiter →',
+    nothingToDeposit: 'Ich habe heute Nacht nichts abzulegen', saving: 'Speichern…', goodnight: 'Gute Nacht 🌙', skipPriorities: 'Prioritäten überspringen',
+  },
+  it: {
+    stepSubs: { 1: 'Come stai stasera?', 2: 'La tua emozione del momento', 3: 'Posa ciò che porti', 4: 'Prepara domani con serenità' },
+    prevStep: 'Passaggio precedente', moodRecorded: 'Umore registrato ✓', continue: 'Continua →',
+    nothingToDeposit: 'Non ho nulla da posare stasera', saving: 'Salvataggio…', goodnight: 'Buona notte 🌙', skipPriorities: 'Salta le priorità',
+  },
+  pt: {
+    stepSubs: { 1: 'Como te sentes esta noite?', 2: 'A tua emoção do momento', 3: 'Pousa o que carregas', 4: 'Prepara o amanhã com serenidade' },
+    prevStep: 'Passo anterior', moodRecorded: 'Humor registado ✓', continue: 'Continuar →',
+    nothingToDeposit: 'Não tenho nada para pousar esta noite', saving: 'A guardar…', goodnight: 'Boa noite 🌙', skipPriorities: 'Saltar prioridades',
+  },
 }
 
 interface Props {
@@ -36,6 +72,9 @@ interface Props {
 export function CheckoutScreen({ lang, onComplete }: Props) {
   const { user, profile } = useAuthSupabase()
   const userId = user?.id ?? ''
+
+  const l  = (lang as Lang) in CHECKOUT_T ? (lang as Lang) : 'en'
+  const ct = CHECKOUT_T[l]
 
   const {
     step,
@@ -69,6 +108,7 @@ export function CheckoutScreen({ lang, onComplete }: Props) {
         moodEvening={checkoutData.mood_evening}
         companionAnimal={profile?.companion_animal ?? null}
         userId={userId}
+        lang={lang}
         onStay={onComplete}
       />
     )
@@ -100,7 +140,7 @@ export function CheckoutScreen({ lang, onComplete }: Props) {
           {/* Back button */}
           {step > 1 && (
             <button
-              aria-label="Étape précédente"
+              aria-label={ct.prevStep}
               onClick={prevStep}
               style={{
                 position:     'absolute',
@@ -146,7 +186,7 @@ export function CheckoutScreen({ lang, onComplete }: Props) {
                 marginTop:  2,
               }}
             >
-              {STEP_SUBTITLES[step]}
+              {ct.stepSubs[step]}
             </div>
           </div>
         </div>
@@ -225,6 +265,7 @@ export function CheckoutScreen({ lang, onComplete }: Props) {
           <EmotionalFlow
             emotion={checkoutData.emotion_primary as 'colere' | 'tristesse' | 'joie' | 'stress' | 'peur'}
             accent={T.violet}
+            lang={lang}
             onJoyNote={setJoyNote}
             onComplete={() => goToStep(3)}
           />
@@ -241,14 +282,14 @@ export function CheckoutScreen({ lang, onComplete }: Props) {
                 lineHeight: 1.6,
               }}
             >
-              Humeur enregistrée ✓
+              {ct.moodRecorded}
             </div>
             <button
-              aria-label="Continuer vers la décharge"
+              aria-label={ct.continue}
               onClick={() => goToStep(3)}
               style={primaryBtnStyle}
             >
-              Continuer →
+              {ct.continue}
             </button>
           </div>
         )}
@@ -261,18 +302,18 @@ export function CheckoutScreen({ lang, onComplete }: Props) {
               onChange={setDecharge}
             />
             <button
-              aria-label="Continuer vers les priorités"
+              aria-label={ct.continue}
               onClick={() => goToStep(4)}
               style={primaryBtnStyle}
             >
-              Continuer →
+              {ct.continue}
             </button>
             <button
-              aria-label="Passer la décharge"
+              aria-label={ct.nothingToDeposit}
               onClick={() => goToStep(4)}
               style={skipBtnStyle}
             >
-              Je n'ai rien à poser ce soir
+              {ct.nothingToDeposit}
             </button>
           </div>
         )}
@@ -285,22 +326,24 @@ export function CheckoutScreen({ lang, onComplete }: Props) {
               todo2={checkoutData.tomorrow_todo_2 ?? ''}
               onTodo1={v => setTodos(v, checkoutData.tomorrow_todo_2 ?? '')}
               onTodo2={v => setTodos(checkoutData.tomorrow_todo_1 ?? '', v)}
+              accent={T.violet}
+              lang={lang}
             />
             <button
-              aria-label="Terminer le checkout"
+              aria-label={submitting ? ct.saving : ct.goodnight}
               onClick={submit}
               disabled={submitting}
               style={{ ...primaryBtnStyle, opacity: submitting ? 0.6 : 1 }}
             >
-              {submitting ? 'Enregistrement…' : 'Bonne nuit 🌙'}
+              {submitting ? ct.saving : ct.goodnight}
             </button>
             <button
-              aria-label="Passer les todos"
+              aria-label={ct.skipPriorities}
               onClick={submit}
               disabled={submitting}
               style={skipBtnStyle}
             >
-              Passer les priorités
+              {ct.skipPriorities}
             </button>
           </div>
         )}
