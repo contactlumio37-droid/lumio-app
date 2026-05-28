@@ -401,7 +401,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
     padding: "1rem",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   },
@@ -416,13 +416,13 @@ const styles = {
   logoWrapper: { display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "2rem" },
   logoIcon: {
     width: "44px", height: "44px", borderRadius: "12px",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
     display: "flex", alignItems: "center", justifyContent: "center",
     boxShadow: "0 4px 12px rgba(102,126,234,0.4)",
   },
   logoText: {
     fontSize: "1.6rem", fontWeight: "700",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
     WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
   },
   title: { fontSize: "1.6rem", fontWeight: "700", color: "#1a1a2e", margin: "0 0 0.3rem", letterSpacing: "-0.02em" },
@@ -441,7 +441,7 @@ const styles = {
   field: { display: "flex", flexDirection: "column", gap: "0.4rem" },
   label: { fontSize: "0.875rem", fontWeight: "600", color: "#374151" },
   forgotLink: {
-    background: "none", border: "none", color: "#667eea", fontSize: "0.8rem",
+    background: "none", border: "none", color: "#7C3AED", fontSize: "0.8rem",
     fontWeight: "500", cursor: "pointer", padding: 0, textDecoration: "none",
   },
   input: {
@@ -452,7 +452,7 @@ const styles = {
   submitBtn: {
     display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
     padding: "0.85rem", borderRadius: "12px", border: "none",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
     color: "#ffffff", fontSize: "0.95rem", fontWeight: "700", cursor: "pointer",
     marginTop: "0.25rem", boxShadow: "0 4px 15px rgba(102,126,234,0.4)", letterSpacing: "0.01em",
   },
@@ -467,7 +467,7 @@ const styles = {
   },
   switchText: { textAlign: "center", marginTop: "1.5rem", fontSize: "0.9rem", color: "#6b7280", marginBottom: 0 },
   switchLink: {
-    background: "none", border: "none", color: "#667eea", fontWeight: "600",
+    background: "none", border: "none", color: "#7C3AED", fontWeight: "600",
     fontSize: "0.9rem", cursor: "pointer", padding: 0,
     textDecoration: "underline", textDecorationColor: "transparent",
   },
