@@ -19,6 +19,7 @@ import { PlanComparison } from "./components/paywall/PlanComparison";
 import { PurchaseScreen } from "./components/paywall/PurchaseScreen";
 import { initRevenueCat } from "./services/revenuecatService";
 import { BottomNav } from "./components/nav/BottomNav";
+import { Home, PenLine, TrendingUp, MessageCircle, Settings, Wrench } from "lucide-react";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -2224,12 +2225,12 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   };
 
   const navItems = [
-    { id: "home", label: t.nav.home, icon: "🏠" },
-    { id: "entry", label: t.nav.entry, icon: "✍️" },
-    { id: "track", label: t.nav.track, icon: "📈" },
-    { id: "journal", label: t.nav.journal, icon: "💭" },
-    { id: "settings", label: t.nav.settings, icon: "⚙️" },
-    ...(role === "admin" ? [{ id: "admin", label: "Admin", icon: "🔧" }] : []),
+    { id: "home",     label: t.nav.home,    icon: Home },
+    { id: "entry",    label: t.nav.entry,   icon: PenLine },
+    { id: "track",    label: t.nav.track,   icon: TrendingUp },
+    { id: "journal",  label: t.nav.journal, icon: MessageCircle },
+    { id: "settings", label: t.nav.settings, icon: Settings },
+    ...(role === "admin" ? [{ id: "admin", label: "Admin", icon: Wrench }] : []),
   ];
   const navOrder = navItems.map(i => i.id);
 
