@@ -2275,7 +2275,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
               }}>
                 <div>
                   <div style={{ fontFamily: "DM Sans, sans-serif", fontSize: 13, color: "#6B7280" }}>
-                    {(() => { const h = new Date().getHours(); return h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir"; })()}
+                    {t.greet(new Date().getHours())}
                   </div>
                   <div style={{ fontFamily: "Syne, sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: "-0.02em", color: "#EDE9FE" }}>
                     {firstName || "toi"} ✨
