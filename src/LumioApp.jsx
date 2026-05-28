@@ -2056,11 +2056,8 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     );
   }, [lang]);
 
-  const showAdPopup = useCallback((reason) => {
-    if (plan !== "premium" && (reason === "save" || reason === "journal")) {
-      setShowAd(true);
-    }
-  }, [plan]);
+  // Ad popups disabled (product decision)
+  const showAdPopup = useCallback(() => {}, []);
 
   // ── sessionStorage: persist active tab across F5 ────────────────────────────
   useEffect(() => {
@@ -2447,15 +2444,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
         border={th.border}
       />
 
-      {showAd && (
-        <AdPopup
-          onClose={() => setShowAd(false)}
-          onUpgrade={() => setShowAd(false)}
-          accent={accent}
-          th={th}
-          t={t}
-        />
-      )}
+      {/* AdPopup disabled — product decision */}
 
       {showRoadmapModal && (
         <RoadmapModal
