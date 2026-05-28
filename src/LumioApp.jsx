@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { supabase } from "./lib/supabase";
@@ -1973,12 +1974,17 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   const [ls] = useState(() => lsGet(lsKey, {}));
   const [lsDays] = useState(() => lsGet(`${lsKey}_days`, null));
 
-  // Tab — persisted in sessionStorage so F5 stays on the same tab
-  const [tab, setTab] = useState(() => {
-    try { return sessionStorage.getItem("lumio_tab") || "home"; } catch { return "home"; }
-  });
+  // Tab derived from URL pathname — back/forward and deep links work automatically
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const tab = pathname === "/" ? "home" : pathname.slice(1);
   const prevTabRef = useRef(tab);
   const [tabDir, setTabDir] = useState("");
+
+  // Redirect bare "/" to "/home"
+  useEffect(() => {
+    if (pathname === "/") navigate("/home", { replace: true });
+  }, [pathname, navigate]);
 
   const [lang, setLang] = useState(ls.lang || "fr");
   const [theme, setTheme] = useState(ls.theme || "dark");
@@ -2071,11 +2077,6 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
 
   // Ad popups disabled (product decision)
   const showAdPopup = useCallback(() => {}, []);
-
-  // ── sessionStorage: persist active tab across F5 ────────────────────────────
-  useEffect(() => {
-    try { sessionStorage.setItem("lumio_tab", tab); } catch {}
-  }, [tab]);
 
   // ── localStorage: persist all state synchronously on each change ────────────
   useEffect(() => {
@@ -2245,7 +2246,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     const nextIdx = navOrder.indexOf(newTab);
     setTabDir(nextIdx >= prevIdx ? "lumio-step-fwd" : "lumio-step-bwd");
     prevTabRef.current = newTab;
-    setTab(newTab);
+    navigate("/" + newTab);
   }
 
   const checkoutBtn = !checkoutDone ? (
