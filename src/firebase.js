@@ -15,15 +15,20 @@ const app = initializeApp(firebaseConfig);
 
 // Analytics is disabled by default until the user gives GDPR consent.
 // Call enableAnalytics() after consent is granted.
-const analytics = getAnalytics(app);
-setAnalyticsCollectionEnabled(analytics, false);
+let analytics;
+try {
+  analytics = getAnalytics(app);
+  setAnalyticsCollectionEnabled(analytics, false);
+} catch {
+  analytics = null;
+}
 
 export function enableAnalytics() {
-  setAnalyticsCollectionEnabled(analytics, true);
+  if (analytics) setAnalyticsCollectionEnabled(analytics, true);
 }
 
 export function disableAnalytics() {
-  setAnalyticsCollectionEnabled(analytics, false);
+  if (analytics) setAnalyticsCollectionEnabled(analytics, false);
 }
 
 export { app, analytics };
