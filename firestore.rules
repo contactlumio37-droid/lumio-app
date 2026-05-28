@@ -1,3 +1,5 @@
+// ARCHIVED — Firestore is not used. All data is stored in Supabase (PostgreSQL).
+// These rules are kept for reference but are not deployed or enforced.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
