@@ -1,7 +1,10 @@
+import type { ElementType } from 'react'
+import type { LucideProps } from 'lucide-react'
+
 interface NavItem {
   id:    string
   label: string
-  icon:  string
+  icon:  ElementType<LucideProps>
 }
 
 interface Props {
@@ -38,6 +41,7 @@ export function BottomNav({ items, activeTab, onTabChange, navBg, border }: Prop
       >
         {items.map(item => {
           const active = activeTab === item.id
+          const Icon = item.icon
           return (
             <button
               key={item.id}
@@ -71,7 +75,11 @@ export function BottomNav({ items, activeTab, onTabChange, navBg, border }: Prop
                   }}
                 />
               )}
-              <span style={{ fontSize: 18 }}>{item.icon}</span>
+              <Icon
+                size={20}
+                color={active ? '#C4B5FD' : '#6B7280'}
+                strokeWidth={active ? 2 : 1.5}
+              />
               <span
                 style={{
                   fontSize:   11,

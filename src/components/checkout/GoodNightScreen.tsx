@@ -2,17 +2,97 @@ import { useEffect, useState } from 'react'
 import { getStreak } from '../../services/checkoutService'
 
 type Animal = 'otter' | 'hedgehog' | 'fox' | 'koala' | 'axolotl'
+type Lang   = 'fr' | 'en' | 'es' | 'de' | 'it' | 'pt'
 
 const ANIMAL_EMOJI: Record<Animal, string> = {
   otter: '🦦', hedgehog: '🦔', fox: '🦊', koala: '🐨', axolotl: '🦎',
 }
 
-const MESSAGES: Record<1 | 2 | 3 | 4 | 5, string> = {
-  5: 'Quelle belle soirée. Tu mérites une bonne nuit 🌟',
-  4: 'Une bonne journée derrière toi. Repose-toi bien 🌙',
-  3: "Journée neutre — et c'est ok. Bonne nuit 😌",
-  2: 'Ce soir a été dur. Demain est une nouvelle page 🌱',
-  1: "Courage. La nuit va t'aider. Tu n'es pas seul·e 💙",
+const GN_T: Record<Lang, {
+  title: string
+  messages: Record<1 | 2 | 3 | 4 | 5, string>
+  streakLabel: (n: number) => string
+  closeApp: string
+  stayInApp: string
+}> = {
+  fr: {
+    title: 'Bonne nuit',
+    messages: {
+      5: 'Quelle belle soirée. Tu mérites une bonne nuit 🌟',
+      4: 'Une bonne journée derrière toi. Repose-toi bien 🌙',
+      3: "Journée neutre — et c'est ok. Bonne nuit 😌",
+      2: 'Ce soir a été dur. Demain est une nouvelle page 🌱',
+      1: "Courage. La nuit va t'aider. Tu n'es pas seul·e 💙",
+    },
+    streakLabel: n => `${n} jour${n > 1 ? 's' : ''} de suite`,
+    closeApp:   'Fermer l\'app',
+    stayInApp:  'Rester dans l\'app',
+  },
+  en: {
+    title: 'Good night',
+    messages: {
+      5: "What a beautiful evening. You deserve a good night's sleep 🌟",
+      4: 'A good day behind you. Rest well 🌙',
+      3: "Neutral day — and that's okay. Good night 😌",
+      2: 'Tonight was tough. Tomorrow is a new page 🌱',
+      1: 'Courage. The night will help you. You are not alone 💙',
+    },
+    streakLabel: n => `${n} day${n > 1 ? 's' : ''} in a row`,
+    closeApp:   'Close app',
+    stayInApp:  'Stay in app',
+  },
+  es: {
+    title: 'Buenas noches',
+    messages: {
+      5: 'Qué bonita velada. Te mereces una buena noche 🌟',
+      4: 'Un buen día detrás de ti. Descansa bien 🌙',
+      3: 'Día neutro — y está bien. Buenas noches 😌',
+      2: 'Esta noche fue dura. Mañana es una página nueva 🌱',
+      1: 'Ánimo. La noche te ayudará. No estás solo·a 💙',
+    },
+    streakLabel: n => `${n} día${n > 1 ? 's' : ''} seguidos`,
+    closeApp:   'Cerrar app',
+    stayInApp:  'Quedarse en la app',
+  },
+  de: {
+    title: 'Gute Nacht',
+    messages: {
+      5: 'Was für ein schöner Abend. Du hast eine gute Nacht verdient 🌟',
+      4: 'Ein guter Tag liegt hinter dir. Ruh dich gut aus 🌙',
+      3: 'Neutraler Tag — und das ist okay. Gute Nacht 😌',
+      2: 'Dieser Abend war schwer. Morgen ist eine neue Seite 🌱',
+      1: 'Mut. Die Nacht wird dir helfen. Du bist nicht allein 💙',
+    },
+    streakLabel: n => `${n} Tag${n > 1 ? 'e' : ''} in Folge`,
+    closeApp:   'App schließen',
+    stayInApp:  'In der App bleiben',
+  },
+  it: {
+    title: 'Buona notte',
+    messages: {
+      5: 'Che bella serata. Meriti una buona notte 🌟',
+      4: 'Una buona giornata alle spalle. Riposati bene 🌙',
+      3: 'Giornata neutra — e va bene così. Buona notte 😌',
+      2: 'Stasera è stato difficile. Domani è una nuova pagina 🌱',
+      1: 'Coraggio. La notte ti aiuterà. Non sei solo·a 💙',
+    },
+    streakLabel: n => `${n} giorno${n > 1 ? 'i' : ''} di fila`,
+    closeApp:   'Chiudi app',
+    stayInApp:  "Resta nell'app",
+  },
+  pt: {
+    title: 'Boa noite',
+    messages: {
+      5: 'Que bela noite. Mereces um bom descanso 🌟',
+      4: 'Um bom dia ficou para trás. Descansa bem 🌙',
+      3: 'Dia neutro — e tudo bem. Boa noite 😌',
+      2: 'Esta noite foi difícil. Amanhã é uma nova página 🌱',
+      1: 'Coragem. A noite vai ajudar-te. Não estás sozinho·a 💙',
+    },
+    streakLabel: n => `${n} dia${n > 1 ? 's' : ''} seguidos`,
+    closeApp:   'Fechar app',
+    stayInApp:  'Ficar na app',
+  },
 }
 
 // Particules fixes pour éviter les recalculs
@@ -28,15 +108,18 @@ interface Props {
   moodEvening?:    1 | 2 | 3 | 4 | 5
   companionAnimal?: Animal | null
   userId:          string
+  lang?:           string
   onStay:          () => void
 }
 
-export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onStay }: Props) {
+export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, lang = 'fr', onStay }: Props) {
   const [streak,      setStreak]      = useState<number | null>(null)
   const [streakReady, setStreakReady] = useState(false)
 
-  const animal    = companionAnimal ?? 'otter'
-  const emoji     = ANIMAL_EMOJI[animal]
+  const l  = (lang as Lang) in GN_T ? (lang as Lang) : 'en'
+  const t  = GN_T[l]
+  const animal = companionAnimal ?? 'otter'
+  const emoji  = ANIMAL_EMOJI[animal]
 
   useEffect(() => {
     getStreak(userId)
@@ -125,7 +208,7 @@ export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onSt
         {emoji}
       </div>
 
-      {/* ── Bonne nuit ─────────────────────────────────────────────── */}
+      {/* ── Titre ──────────────────────────────────────────────────── */}
       <div
         style={{
           fontFamily:    'Syne, sans-serif',
@@ -141,7 +224,7 @@ export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onSt
           zIndex:        1,
         }}
       >
-        Bonne nuit
+        {t.title}
       </div>
 
       {/* ── Message selon humeur ───────────────────────────────────── */}
@@ -159,7 +242,7 @@ export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onSt
           zIndex:      1,
         }}
       >
-        {MESSAGES[moodEvening]}
+        {t.messages[moodEvening]}
       </div>
 
       {/* ── Streak badge ───────────────────────────────────────────── */}
@@ -180,12 +263,7 @@ export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onSt
             animationDelay: '500ms',
           }}
         >
-          <span
-            className="lumio-dot-pulse"
-            style={{ fontSize: 14 }}
-          >
-            🔥
-          </span>
+          <span className="lumio-dot-pulse" style={{ fontSize: 14 }}>🔥</span>
           <span
             style={{
               fontFamily:    'Syne, sans-serif',
@@ -195,7 +273,7 @@ export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onSt
               letterSpacing: '0.02em',
             }}
           >
-            {streak} jour{streak > 1 ? 's' : ''} de suite
+            {t.streakLabel(streak)}
           </span>
         </div>
       )}
@@ -213,7 +291,7 @@ export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onSt
         }}
       >
         <button
-          aria-label="Fermer l'app"
+          aria-label={t.closeApp}
           onClick={handleClose}
           style={{
             padding:      '14px 24px',
@@ -229,11 +307,11 @@ export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onSt
             cursor:       'pointer',
           }}
         >
-          Fermer l'app
+          {t.closeApp}
         </button>
 
         <button
-          aria-label="Rester dans l'app"
+          aria-label={t.stayInApp}
           onClick={onStay}
           style={{
             padding:      '12px',
@@ -246,7 +324,7 @@ export function GoodNightScreen({ moodEvening = 3, companionAnimal, userId, onSt
             cursor:       'pointer',
           }}
         >
-          Rester dans l'app
+          {t.stayInApp}
         </button>
       </div>
     </div>

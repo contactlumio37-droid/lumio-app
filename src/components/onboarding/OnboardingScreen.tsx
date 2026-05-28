@@ -13,7 +13,7 @@ const SUPPORTED: SupportedLang[] = ['fr', 'en', 'es', 'de', 'it', 'pt']
 
 function detectLang(): SupportedLang {
   const code = navigator.language.slice(0, 2) as SupportedLang
-  return SUPPORTED.includes(code) ? code : 'fr'
+  return SUPPORTED.includes(code) ? code : 'en'
 }
 
 const T: Record<SupportedLang, {
@@ -55,7 +55,7 @@ const T: Record<SupportedLang, {
 
 const BTN: React.CSSProperties = {
   width: '100%', padding: '14px', borderRadius: 14, border: 'none',
-  background: 'linear-gradient(135deg, #667eea, #764ba2)',
+  background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
   color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer',
 }
 
@@ -65,7 +65,7 @@ function Dots({ step }: { step: number }) {
       {[0, 1, 2].map(i => (
         <div key={i} style={{
           width: i === step ? 20 : 8, height: 8, borderRadius: 4,
-          background: i === step ? '#7C9EFF' : 'rgba(124,158,255,0.3)',
+          background: i === step ? '#C4B5FD' : 'rgba(124,158,255,0.3)',
           transition: 'width 0.3s ease',
         }} />
       ))}

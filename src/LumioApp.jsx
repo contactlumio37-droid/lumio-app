@@ -19,6 +19,7 @@ import { PlanComparison } from "./components/paywall/PlanComparison";
 import { PurchaseScreen } from "./components/paywall/PurchaseScreen";
 import { initRevenueCat } from "./services/revenuecatService";
 import { BottomNav } from "./components/nav/BottomNav";
+import { Home, PenLine, TrendingUp, MessageCircle, Settings, Wrench } from "lucide-react";
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -574,7 +575,7 @@ function MoodModal({moods,setMoods,lang,accent,th,onClose}){
               <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:th.bg2,borderRadius:12,border:`1px solid ${th.border}`}}>
                 <div style={{width:20,height:20,borderRadius:5,background:m.color,flexShrink:0}}/>
                 <span style={{flex:1,fontSize:13,fontWeight:600,color:th.text}}>{m.label}</span>
-                {moods.length>2&&<button onClick={()=>setMoods(ms=>ms.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:16,padding:"0 4px"}}>×</button>}
+                {moods.length>2&&<button onClick={()=>setMoods(ms=>ms.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:16,minWidth:44,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>×</button>}
               </div>
             ))}
           </div>
@@ -583,9 +584,9 @@ function MoodModal({moods,setMoods,lang,accent,th,onClose}){
             <TInput th={th} value={newLabel} onChange={setNewLabel} placeholder={t.moodLabel} style={{marginBottom:10}}/>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
               {PRESET_COLORS.map(c=>(
-                <button key={c} onClick={()=>setNewColor(c)} style={{width:26,height:26,borderRadius:6,background:c,border:newColor===c?"3px solid "+th.text:"2px solid transparent",cursor:"pointer",transition:"all .15s"}}/>
+                <button key={c} onClick={()=>setNewColor(c)} style={{minWidth:44,minHeight:44,borderRadius:6,background:c,border:newColor===c?"3px solid "+th.text:"2px solid transparent",cursor:"pointer",transition:"all .15s"}}/>
               ))}
-              <input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} style={{width:26,height:26,borderRadius:6,border:`2px solid ${th.border2}`,cursor:"pointer",background:"none"}}/>
+              <input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} style={{minWidth:44,minHeight:44,borderRadius:6,border:`2px solid ${th.border2}`,cursor:"pointer",background:"none"}}/>
             </div>
             <Btn th={th} onClick={()=>{if(newLabel.trim()){setMoods(ms=>[...ms,{id:"custom_"+Date.now(),label:newLabel.trim(),color:newColor}]);setNewLabel("");}}} color={accent} full small disabled={!newLabel.trim()}>{t.addMood}</Btn>
           </div>
@@ -630,26 +631,26 @@ function RichEditor({value,onChange,placeholder,minHeight=120,accent,th}){
     <div style={{border:`1px solid ${th.border2}`,borderRadius:14,overflow:"visible",background:th.inputBg,position:"relative"}}>
       <div style={{display:"flex",gap:3,padding:"7px 10px",borderBottom:`1px solid ${th.border}`,flexWrap:"wrap",alignItems:"center",background:th.bg3,borderRadius:"14px 14px 0 0"}}>
         {[{l:"G",c:"bold",s:{fontWeight:800}},{l:"I",c:"italic",s:{fontStyle:"italic"}},{l:"S",c:"underline",s:{textDecoration:"underline"}},{l:"B̶",c:"strikeThrough",s:{opacity:.7}}].map(b=>(
-          <button key={b.c} onMouseDown={e=>{e.preventDefault();exec(b.c);}} style={{padding:"3px 7px",borderRadius:6,border:`1px solid ${th.border}`,background:th.bg2,color:th.text,cursor:"pointer",fontSize:12,...b.s}}>{b.l}</button>
+          <button key={b.c} onMouseDown={e=>{e.preventDefault();exec(b.c);}} style={{padding:"3px 7px",borderRadius:6,border:`1px solid ${th.border}`,background:th.bg2,color:th.text,cursor:"pointer",fontSize:12,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center",...b.s}}>{b.l}</button>
         ))}
         <div style={{width:1,height:16,background:th.border2,margin:"0 1px"}}/>
         <div style={{position:"relative"}}>
-          <button onMouseDown={e=>{e.preventDefault();setShowHL(!showHL);setShowEmoji(false);}} style={{padding:"3px 7px",borderRadius:6,border:`1px solid ${th.border}`,background:showHL?ac+"22":th.bg2,color:showHL?ac:th.text,cursor:"pointer",fontSize:12}}>M̲</button>
+          <button onMouseDown={e=>{e.preventDefault();setShowHL(!showHL);setShowEmoji(false);}} style={{padding:"3px 7px",borderRadius:6,border:`1px solid ${th.border}`,background:showHL?ac+"22":th.bg2,color:showHL?ac:th.text,cursor:"pointer",fontSize:12,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>M̲</button>
           {showHL&&<div style={{position:"absolute",top:"110%",left:0,zIndex:300,background:th.bg2,border:`1px solid ${th.border2}`,borderRadius:10,padding:8,display:"flex",gap:5,boxShadow:"0 8px 24px rgba(0,0,0,0.2)"}}>
-            {HLS.map(c=><button key={c} onMouseDown={e=>{e.preventDefault();exec("hiliteColor",c);setShowHL(false);}} style={{width:22,height:22,borderRadius:5,background:c,border:"none",cursor:"pointer"}}/>)}
-            <button onMouseDown={e=>{e.preventDefault();exec("hiliteColor","transparent");setShowHL(false);}} style={{width:22,height:22,borderRadius:5,background:"transparent",border:`1px solid ${th.border2}`,cursor:"pointer",fontSize:10,color:th.text3}}>✕</button>
+            {HLS.map(c=><button key={c} onMouseDown={e=>{e.preventDefault();exec("hiliteColor",c);setShowHL(false);}} style={{width:36,height:36,borderRadius:5,background:c,border:"none",cursor:"pointer"}}/>)}
+            <button onMouseDown={e=>{e.preventDefault();exec("hiliteColor","transparent");setShowHL(false);}} style={{width:36,height:36,borderRadius:5,background:"transparent",border:`1px solid ${th.border2}`,cursor:"pointer",fontSize:10,color:th.text3,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>✕</button>
           </div>}
         </div>
         <div style={{width:1,height:16,background:th.border2,margin:"0 1px"}}/>
         {[{l:"•",c:"insertUnorderedList"},{l:"1.",c:"insertOrderedList"}].map(b=>(
-          <button key={b.c} onMouseDown={e=>{e.preventDefault();exec(b.c);}} style={{padding:"3px 7px",borderRadius:6,border:`1px solid ${th.border}`,background:th.bg2,color:th.text2,cursor:"pointer",fontSize:12,fontWeight:700}}>{b.l}</button>
+          <button key={b.c} onMouseDown={e=>{e.preventDefault();exec(b.c);}} style={{padding:"3px 7px",borderRadius:6,border:`1px solid ${th.border}`,background:th.bg2,color:th.text2,cursor:"pointer",fontSize:12,fontWeight:700,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.l}</button>
         ))}
         {[{l:"⬛",c:"justifyLeft"},{l:"▬",c:"justifyCenter"}].map(b=>(
-          <button key={b.c} onMouseDown={e=>{e.preventDefault();exec(b.c);}} style={{padding:"3px 6px",borderRadius:6,border:`1px solid ${th.border}`,background:th.bg2,color:th.text2,cursor:"pointer",fontSize:10}}>{b.l}</button>
+          <button key={b.c} onMouseDown={e=>{e.preventDefault();exec(b.c);}} style={{padding:"3px 6px",borderRadius:6,border:`1px solid ${th.border}`,background:th.bg2,color:th.text2,cursor:"pointer",fontSize:10,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.l}</button>
         ))}
         <div style={{width:1,height:16,background:th.border2,margin:"0 1px"}}/>
         <div style={{position:"relative"}}>
-          <button onMouseDown={e=>{e.preventDefault();setShowEmoji(!showEmoji);setShowHL(false);}} style={{padding:"3px 7px",borderRadius:6,border:`1px solid ${th.border}`,background:showEmoji?ac+"22":th.bg2,color:showEmoji?ac:th.text2,cursor:"pointer",fontSize:14}}>🙂</button>
+          <button onMouseDown={e=>{e.preventDefault();setShowEmoji(!showEmoji);setShowHL(false);}} style={{padding:"3px 7px",borderRadius:6,border:`1px solid ${th.border}`,background:showEmoji?ac+"22":th.bg2,color:showEmoji?ac:th.text2,cursor:"pointer",fontSize:14,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>🙂</button>
           {showEmoji&&<div style={{position:"absolute",top:"110%",left:0,zIndex:300,background:th.bg2,border:`1px solid ${th.border2}`,borderRadius:12,padding:8,display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:4,boxShadow:"0 8px 32px rgba(0,0,0,0.15)",width:176}}>
             {EMOJIS.map(e=><button key={e} onMouseDown={ev=>{ev.preventDefault();exec("insertText",e);setShowEmoji(false);}} style={{padding:"4px",borderRadius:6,border:"none",background:th.bg3,cursor:"pointer",fontSize:15,lineHeight:1}}>{e}</button>)}
           </div>}
@@ -694,7 +695,7 @@ function DayModal({day,month,year,dayData,trackers,moods,accent,th,lang,onSave,o
             {(mood1||mood2)&&<div style={{display:"flex",alignItems:"center",gap:8}}>
               <MoodCell mood1={mood1} mood2={mood2} size={28} th={th} moods={moods}/>
               <span style={{fontSize:12,color:th.text2}}>{getMoodObj(mood1,moods)?.label}{mood2&&` · ${getMoodObj(mood2,moods)?.label}`}</span>
-              <button onClick={()=>{setMood1("");setMood2("");}} style={{marginLeft:"auto",background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:18}}>×</button>
+              <button onClick={()=>{setMood1("");setMood2("");}} style={{marginLeft:"auto",background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:18,minWidth:44,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>×</button>
             </div>}
           </div>
           {trackers.length>0&&<div style={{marginBottom:14}}>
@@ -717,7 +718,7 @@ function DayModal({day,month,year,dayData,trackers,moods,accent,th,lang,onSave,o
                 <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:accent+"11",borderRadius:10,border:`1px solid ${accent}22`}}>
                   <span style={{color:accent,fontSize:14}}>✦</span>
                   <span style={{flex:1,fontSize:13,color:th.text2}}>{j}</span>
-                  <button onClick={()=>setJoys(js=>js.filter((_,x)=>x!==i))} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:14}}>×</button>
+                  <button onClick={()=>setJoys(js=>js.filter((_,x)=>x!==i))} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:14,minWidth:44,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>×</button>
                 </div>
               ))}
             </div>}
@@ -882,12 +883,12 @@ function ObjCard({obj,accent,onUpdate,onDelete,th,t}){
       {obj.type==="counter"&&(
         <div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <button onClick={()=>onUpdate({...obj,count:Math.max(0,(obj.count||0)-1)})} style={{width:38,height:38,borderRadius:10,background:th.bg3,border:`1px solid ${th.border}`,color:th.text,fontSize:20,cursor:"pointer"}}>−</button>
+            <button onClick={()=>onUpdate({...obj,count:Math.max(0,(obj.count||0)-1)})} style={{width:44,height:44,borderRadius:10,background:th.bg3,border:`1px solid ${th.border}`,color:th.text,fontSize:20,cursor:"pointer"}}>−</button>
             <div style={{flex:1,textAlign:"center"}}>
               <div style={{fontSize:26,fontWeight:800,color:accent}}>{obj.count||0}</div>
               <div style={{fontSize:10,color:th.text3}}>/ {obj.target} {obj.unit}</div>
             </div>
-            <button onClick={()=>onUpdate({...obj,count:(obj.count||0)+1})} style={{width:38,height:38,borderRadius:10,background:accent+"33",border:`1px solid ${accent}44`,color:accent,fontSize:20,fontWeight:800,cursor:"pointer"}}>+</button>
+            <button onClick={()=>onUpdate({...obj,count:(obj.count||0)+1})} style={{width:44,height:44,borderRadius:10,background:accent+"33",border:`1px solid ${accent}44`,color:accent,fontSize:20,fontWeight:800,cursor:"pointer"}}>+</button>
           </div>
           {counterOver > 0 && (
             <div style={{marginTop:8,fontSize:11,color:accent,fontWeight:700,textAlign:"center"}}>
@@ -1041,7 +1042,7 @@ function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,isPlus,s
       {(dayData.mood1||dayData.mood2)&&<div style={{display:"flex",alignItems:"center",gap:8}}>
         <MoodCell mood1={dayData.mood1} mood2={dayData.mood2} size={28} th={th} moods={moods}/>
         <span style={{fontSize:12,color:th.text2}}>{getMoodObj(dayData.mood1,moods)?.label}{dayData.mood2&&` · ${getMoodObj(dayData.mood2,moods)?.label}`}</span>
-        <button onClick={()=>saveDay(editDay.day,editDay.month,{...dayData,mood1:"",mood2:null})} style={{marginLeft:"auto",background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:16}}>×</button>
+        <button onClick={()=>saveDay(editDay.day,editDay.month,{...dayData,mood1:"",mood2:null})} style={{marginLeft:"auto",background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:16,minWidth:44,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>×</button>
       </div>}
     </Card>
     <Card th={th} style={{marginBottom:12}}>
@@ -1079,7 +1080,7 @@ function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,isPlus,s
         {(dayData.joys||[]).map((j,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:accent+"11",borderRadius:10,border:`1px solid ${accent}22`}}>
           <span style={{color:accent,fontSize:14}}>✦</span>
           <span style={{flex:1,fontSize:13,color:th.text2}}>{j}</span>
-          <button onClick={()=>saveDay(editDay.day,editDay.month,{...dayData,joys:(dayData.joys||[]).filter((_,x)=>x!==i)})} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:14}}>×</button>
+          <button onClick={()=>saveDay(editDay.day,editDay.month,{...dayData,joys:(dayData.joys||[]).filter((_,x)=>x!==i)})} style={{background:"none",border:"none",color:th.text3,cursor:"pointer",fontSize:14,minWidth:44,minHeight:44,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>))}
       </div>}
       <JoyInput onAdd={j=>saveDay(editDay.day,editDay.month,{...dayData,joys:[...(dayData.joys||[]),j]})} accent={accent} th={th} placeholder={t.joysPlaceholder}/>
@@ -1468,8 +1469,8 @@ function Parametres({
                 key={c}
                 onClick={() => setAccent(c)}
                 style={{
-                  width: 28,
-                  height: 28,
+                  minWidth: 44,
+                  minHeight: 44,
                   borderRadius: 8,
                   border: accent === c ? `3px solid ${th.text}` : `2px solid ${th.border2}`,
                   background: c,
@@ -2224,12 +2225,12 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   };
 
   const navItems = [
-    { id: "home", label: t.nav.home, icon: "🏠" },
-    { id: "entry", label: t.nav.entry, icon: "✍️" },
-    { id: "track", label: t.nav.track, icon: "📈" },
-    { id: "journal", label: t.nav.journal, icon: "💭" },
-    { id: "settings", label: t.nav.settings, icon: "⚙️" },
-    ...(role === "admin" ? [{ id: "admin", label: "Admin", icon: "🔧" }] : []),
+    { id: "home",     label: t.nav.home,    icon: Home },
+    { id: "entry",    label: t.nav.entry,   icon: PenLine },
+    { id: "track",    label: t.nav.track,   icon: TrendingUp },
+    { id: "journal",  label: t.nav.journal, icon: MessageCircle },
+    { id: "settings", label: t.nav.settings, icon: Settings },
+    ...(role === "admin" ? [{ id: "admin", label: "Admin", icon: Wrench }] : []),
   ];
   const navOrder = navItems.map(i => i.id);
 
@@ -2299,6 +2300,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             {!companionAnimal && !companion.loading && (
               <CompanionSelector
                 userId={userId}
+                lang={lang}
                 onSelect={animal => setCompanionAnimal(animal)}
               />
             )}

@@ -12,10 +12,21 @@ const STEP_DURATION = 20 // seconds
 
 interface Props {
   accent: string
+  lang?:  string
   onDone: () => void
 }
 
-export function BodyScan({ accent, onDone }: Props) {
+const BS_LABELS: Record<string, { cont: string; finish: string }> = {
+  fr: { cont: 'Continuer →', finish: 'Terminer' },
+  en: { cont: 'Continue →',  finish: 'Done' },
+  es: { cont: 'Continuar →', finish: 'Terminar' },
+  de: { cont: 'Weiter →',    finish: 'Beenden' },
+  it: { cont: 'Continua →',  finish: 'Termina' },
+  pt: { cont: 'Continuar →', finish: 'Terminar' },
+}
+
+export function BodyScan({ accent, lang = 'fr', onDone }: Props) {
+  const bs = BS_LABELS[lang] ?? BS_LABELS.en
   const [stepIdx, setStepIdx] = useState(0)
   const [elapsed, setElapsed] = useState(0)
 
@@ -102,7 +113,7 @@ export function BodyScan({ accent, onDone }: Props) {
           fontFamily: 'inherit',
         }}
       >
-        {done ? 'Continuer →' : 'Terminer'}
+        {done ? bs.cont : bs.finish}
       </button>
     </div>
   )
