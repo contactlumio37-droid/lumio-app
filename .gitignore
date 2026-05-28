@@ -22,3 +22,8 @@ users_export.json
 *.json.export
 firebase-export-*/
 *.bak
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+*.pyo
