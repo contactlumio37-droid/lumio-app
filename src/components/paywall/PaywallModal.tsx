@@ -13,11 +13,13 @@ export type PaywallFeature =
   | 'insights'
 
 interface Props {
-  feature:   PaywallFeature
-  lang?:     string
-  config?:   CompanionConfig
-  onClose:   () => void
-  onUpgrade: () => void
+  feature:       PaywallFeature
+  lang?:         string
+  config?:       CompanionConfig
+  monthlyPrice?: string | null
+  annualPrice?:  string | null
+  onClose:       () => void
+  onUpgrade:     () => void
 }
 
 type Lang = 'fr' | 'en' | 'es' | 'de' | 'it' | 'pt'
@@ -107,7 +109,20 @@ const LATER_LABEL: Record<Lang, string> = {
   pt: 'Talvez mais tarde',
 }
 
-export function PaywallModal({ feature, lang = 'fr', config, onClose, onUpgrade }: Props) {
+const PER_MONTH: Record<Lang, string> = {
+  fr: '/mois', en: '/mo', es: '/mes', de: '/Mon.', it: '/mese', pt: '/mês',
+}
+const PER_YEAR: Record<Lang, string> = {
+  fr: '/an', en: '/yr', es: '/año', de: '/Jahr', it: '/anno', pt: '/ano',
+}
+const FALLBACK_MONTHLY: Record<Lang, string> = {
+  fr: '7,99€', en: '€7.99', es: '7,99€', de: '7,99€', it: '7,99€', pt: '7,99€',
+}
+const FALLBACK_ANNUAL: Record<Lang, string> = {
+  fr: '59,99€', en: '€59.99', es: '59,99€', de: '59,99€', it: '59,99€', pt: '59,99€',
+}
+
+export function PaywallModal({ feature, lang = 'fr', config, monthlyPrice, annualPrice, onClose, onUpgrade }: Props) {
   const [visible, setVisible] = useState(false)
   const l = (['fr','en','es','de','it','pt'].includes(lang) ? lang : 'fr') as Lang
   const info = FEATURE_INFO[feature][l]
@@ -197,10 +212,11 @@ export function PaywallModal({ feature, lang = 'fr', config, onClose, onUpgrade 
           border:       '1px solid rgba(124,58,237,0.25)',
         }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: '#7C3AED', fontFamily: 'Syne, sans-serif' }}>
-            7,99€<span style={{ fontSize: 12, fontWeight: 400, color: '#C4B5FD' }}>/mois</span>
+            {monthlyPrice ?? FALLBACK_MONTHLY[l]}
+            <span style={{ fontSize: 12, fontWeight: 400, color: '#C4B5FD' }}>{PER_MONTH[l]}</span>
           </div>
           <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-            ou 59,99€/an (−37%)
+            {annualPrice ?? FALLBACK_ANNUAL[l]}{PER_YEAR[l]} (−37%)
           </div>
         </div>
 
