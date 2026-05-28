@@ -1,10 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { supabase } from "./lib/supabase";
 import { getTodaySnapshot } from "./services/checkoutService";
-import { CheckoutScreen } from "./components/checkout/CheckoutScreen";
+const CheckoutScreen = lazy(() => import("./components/checkout/CheckoutScreen").then(m => ({ default: m.CheckoutScreen })));
 import { PrivacyPolicyModal } from "./components/PrivacyPolicy";
 import { useCompanion } from "./hooks/useCompanion";
 import { CompanionDisplay } from "./components/companion/CompanionDisplay";
@@ -2355,11 +2355,13 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
         )}
 
         {tab === "checkout" && (
-          <CheckoutScreen
-            accent={accent}
-            lang={lang}
-            onComplete={() => { setCheckoutDone(true); companion.refresh(); handleTabChange("home"); }}
-          />
+          <Suspense fallback={null}>
+            <CheckoutScreen
+              accent={accent}
+              lang={lang}
+              onComplete={() => { setCheckoutDone(true); companion.refresh(); handleTabChange("home"); }}
+            />
+          </Suspense>
         )}
 
         {tab === "entry" && (
