@@ -163,7 +163,7 @@ const CONFETTI = [
   { left: '35%', delay: '0.32s', dur: '1.5s', color: '#C4B5FD', size: 6 },
 ]
 
-function getPackagePrice(pkg: RCPackage): string {
+export function getPackagePrice(pkg: RCPackage): string {
   try {
     return pkg?.product?.priceString ?? pkg?.product?.price ?? ''
   } catch {
@@ -171,7 +171,7 @@ function getPackagePrice(pkg: RCPackage): string {
   }
 }
 
-function isAnnualPackage(pkg: RCPackage): boolean {
+export function isAnnualPackage(pkg: RCPackage): boolean {
   try {
     const id: string = pkg?.packageType ?? pkg?.identifier ?? ''
     return id.toLowerCase().includes('annual') || id.toLowerCase().includes('yearly') || id === '$rc_annual'

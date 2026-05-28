@@ -16,7 +16,7 @@ import { usePurchase } from "./hooks/usePurchase";
 import { PaywallModal } from "./components/paywall/PaywallModal";
 import { PaywallBadge } from "./components/paywall/PaywallBadge";
 import { PlanComparison } from "./components/paywall/PlanComparison";
-import { PurchaseScreen } from "./components/paywall/PurchaseScreen";
+import { PurchaseScreen, getPackagePrice, isAnnualPackage } from "./components/paywall/PurchaseScreen";
 import { initRevenueCat } from "./services/revenuecatService";
 import { BottomNav } from "./components/nav/BottomNav";
 import { Home, PenLine, TrendingUp, MessageCircle, Settings, Wrench } from "lucide-react";
@@ -1001,7 +1001,7 @@ function Dashboard({data,setData,objectives,setObjectives,widgets,setWidgets,tra
     </div>
 
     {editDay&&<DayModal day={editDay.day} month={editDay.month} year={CUR_Y} dayData={data[editDay.month]?.[editDay.day]} trackers={trackers} moods={moods} accent={accent} th={th} lang={lang} onSave={d=>saveDay(editDay.day,editDay.month,d)} onClose={()=>setEditDay(null)}/>}
-    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} monthlyPrice={rcMonthlyPrice} annualPrice={rcAnnualPrice} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
   </div>);
 }
 
@@ -1090,7 +1090,7 @@ function Saisie({data,setData,trackers,setTrackers,moods,accent,th,lang,isPlus,s
       <textarea value={dayData.note||""} onChange={e=>saveDay(editDay.day,editDay.month,{...dayData,note:e.target.value})} placeholder={t.notePlaceholder} rows={3}
         style={{width:"100%",background:th.inputBg,border:`1px solid ${th.border2}`,borderRadius:12,padding:"10px 14px",color:th.text,fontSize:13,fontFamily:"Georgia,serif",lineHeight:1.7,resize:"none",boxSizing:"border-box"}}/>
     </Card>
-    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} monthlyPrice={rcMonthlyPrice} annualPrice={rcAnnualPrice} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
   </div>);
 }
 
@@ -1160,7 +1160,7 @@ function Suivi({data,setData,trackers,moods,accent,th,lang,isPlus,onShowPurchase
       <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:12}}>{moods.map(m=><div key={m.id} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:8,height:8,borderRadius:2,background:m.color}}/><span style={{fontSize:10,color:th.text3}}>{m.label}</span></div>)}</div>
     </>}
     {editDay&&<DayModal day={editDay.day} month={editDay.month} year={CUR_Y} dayData={data[editDay.month]?.[editDay.day]} trackers={trackers} moods={moods} accent={accent} th={th} lang={lang} onSave={d=>{saveDay(editDay.day,editDay.month,d);setEditDay(null);}} onClose={()=>setEditDay(null)}/>}
-    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
+    {paywallFeature&&<PaywallModal feature={paywallFeature} accent={accent} lang={lang} monthlyPrice={rcMonthlyPrice} annualPrice={rcAnnualPrice} onClose={()=>setPaywallFeature(null)} onUpgrade={()=>{setPaywallFeature(null);onShowPurchase?.();}}/>}
   </div>);
 }
 
@@ -1327,7 +1327,7 @@ function Decharge({ journalEntries, setJournalEntries, accent, th, lang, isPlus,
           </Card>
         ))}
       </div>
-      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={() => setPaywallFeature(null)} onUpgrade={() => { setPaywallFeature(null); onShowPurchase?.(); }}/>}
+      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} monthlyPrice={rcMonthlyPrice} annualPrice={rcAnnualPrice} onClose={() => setPaywallFeature(null)} onUpgrade={() => { setPaywallFeature(null); onShowPurchase?.(); }}/>}
     </div>
   );
 }
@@ -1693,7 +1693,7 @@ function Parametres({
           onClose={() => setShowMoodModal(false)}
         />
       )}
-      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} onClose={() => setPaywallFeature(null)} onUpgrade={() => { setPaywallFeature(null); onShowPurchase?.(); }}/>}
+      {paywallFeature && <PaywallModal feature={paywallFeature} accent={accent} lang={lang} monthlyPrice={rcMonthlyPrice} annualPrice={rcAnnualPrice} onClose={() => setPaywallFeature(null)} onUpgrade={() => { setPaywallFeature(null); onShowPurchase?.(); }}/>}
     </div>
   );
 }
@@ -1994,6 +1994,12 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
   const planData = usePlan(isPlus);
   const [showPurchaseScreen, setShowPurchaseScreen] = useState(false);
   const purchaseHook = usePurchase(userId, () => setPlanOverride("paid"));
+
+  const rcPackages = purchaseHook.offerings?.current?.availablePackages ?? [];
+  const rcMonthlyPkg = rcPackages.find(p => !isAnnualPackage(p)) ?? null;
+  const rcAnnualPkg  = rcPackages.find(p =>  isAnnualPackage(p)) ?? null;
+  const rcMonthlyPrice = rcMonthlyPkg ? getPackagePrice(rcMonthlyPkg) : null;
+  const rcAnnualPrice  = rcAnnualPkg  ? getPackagePrice(rcAnnualPkg)  : null;
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showRoadmapModal, setShowRoadmapModal] = useState(false);
