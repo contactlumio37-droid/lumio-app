@@ -3,6 +3,15 @@ import { getCompanionConfig } from '../../services/companionService'
 import { CompanionAvatar }  from './CompanionAvatar'
 import { CompanionMessage } from './CompanionMessage'
 
+const STREAK_LABEL: Record<string, (n: number) => string> = {
+  fr: n => `${n} jour${n > 1 ? 's' : ''} de suite`,
+  en: n => `${n} day${n > 1 ? 's' : ''} in a row`,
+  es: n => `${n} día${n > 1 ? 's' : ''} seguidos`,
+  de: n => `${n} Tag${n > 1 ? 'e' : ''} in Folge`,
+  it: n => `${n} giorno${n > 1 ? 'i' : ''} di fila`,
+  pt: n => `${n} dia${n > 1 ? 's' : ''} seguidos`,
+}
+
 interface Props {
   animal:    Animal
   state:     CompanionState
@@ -25,6 +34,7 @@ export function CompanionDisplay({
   const config: CompanionConfig = getCompanionConfig(animal, state, lang, streak, userId)
   // Override message avec celui passé en prop (déjà calculé par useCompanion)
   const displayConfig: CompanionConfig = { ...config, message }
+  const streakText = (STREAK_LABEL[lang ?? 'fr'] ?? STREAK_LABEL.fr)(streak)
 
   return (
     <div
@@ -60,7 +70,7 @@ export function CompanionDisplay({
               color:     '#F59E0B',
             }}
           >
-            {streak} jour{streak > 1 ? 's' : ''} de suite
+            {streakText}
           </span>
         </div>
       )}

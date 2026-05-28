@@ -83,6 +83,7 @@ const I18N = {
     deleteAccountConfirm:"⚠️ Supprimer définitivement votre compte et toutes vos données ? Cette action est irréversible.",
     deleteAccountReauth:"Pour supprimer votre compte, veuillez vous reconnecter d'abord.",
     deleteAccountError:"Erreur lors de la suppression. Réessayez.",
+    streakLabel: n => `${n} jour${n > 1 ? 's' : ''} de suite`,
   },
   en: {
     months: ["January","February","March","April","May","June","July","August","September","October","November","December"],
@@ -145,6 +146,7 @@ const I18N = {
     deleteAccountConfirm:"⚠️ Permanently delete your account and all your data? This action is irreversible.",
     deleteAccountReauth:"To delete your account, please sign in again first.",
     deleteAccountError:"Error during deletion. Please try again.",
+    streakLabel: n => `${n} day${n > 1 ? 's' : ''} in a row`,
   },
   es: {
     months: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
@@ -207,6 +209,7 @@ const I18N = {
     deleteAccountConfirm:"⚠️ ¿Eliminar definitivamente tu cuenta y todos tus datos? Esta acción es irreversible.",
     deleteAccountReauth:"Para eliminar tu cuenta, vuelve a iniciar sesión primero.",
     deleteAccountError:"Error al eliminar. Inténtalo de nuevo.",
+    streakLabel: n => `${n} día${n > 1 ? 's' : ''} seguidos`,
   },
   de: {
     months: ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
@@ -269,6 +272,7 @@ const I18N = {
     deleteAccountConfirm:"⚠️ Dein Konto und alle Daten dauerhaft löschen? Diese Aktion ist unwiderruflich.",
     deleteAccountReauth:"Um dein Konto zu löschen, melde dich bitte erneut an.",
     deleteAccountError:"Fehler beim Löschen. Bitte erneut versuchen.",
+    streakLabel: n => `${n} Tag${n > 1 ? 'e' : ''} in Folge`,
   },
   it: {
     months: ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"],
@@ -331,6 +335,7 @@ const I18N = {
     deleteAccountConfirm:"⚠️ Eliminare definitivamente il tuo account e tutti i dati? Questa azione è irreversibile.",
     deleteAccountReauth:"Per eliminare il tuo account, accedi di nuovo prima.",
     deleteAccountError:"Errore durante l'eliminazione. Riprova.",
+    streakLabel: n => `${n} giorno${n > 1 ? 'i' : ''} di fila`,
   },
   pt: {
     months: ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"],
@@ -393,6 +398,7 @@ const I18N = {
     deleteAccountConfirm:"⚠️ Excluir permanentemente sua conta e todos os seus dados? Esta ação é irreversível.",
     deleteAccountReauth:"Para excluir sua conta, faça login novamente primeiro.",
     deleteAccountError:"Erro ao excluir. Tente novamente.",
+    streakLabel: n => `${n} dia${n > 1 ? 's' : ''} seguidos`,
   },
 };
 
@@ -2056,11 +2062,8 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     );
   }, [lang]);
 
-  const showAdPopup = useCallback((reason) => {
-    if (plan !== "premium" && (reason === "save" || reason === "journal")) {
-      setShowAd(true);
-    }
-  }, [plan]);
+  // Ad popups disabled (product decision)
+  const showAdPopup = useCallback(() => {}, []);
 
   // ── sessionStorage: persist active tab across F5 ────────────────────────────
   useEffect(() => {
@@ -2278,7 +2281,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
               }}>
                 <div>
                   <div style={{ fontFamily: "DM Sans, sans-serif", fontSize: 13, color: "#6B7280" }}>
-                    {(() => { const h = new Date().getHours(); return h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir"; })()}
+                    {t.greet(new Date().getHours())}
                   </div>
                   <div style={{ fontFamily: "Syne, sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: "-0.02em", color: "#EDE9FE" }}>
                     {firstName || "toi"} ✨
@@ -2447,15 +2450,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
         border={th.border}
       />
 
-      {showAd && (
-        <AdPopup
-          onClose={() => setShowAd(false)}
-          onUpgrade={() => setShowAd(false)}
-          accent={accent}
-          th={th}
-          t={t}
-        />
-      )}
+      {/* AdPopup disabled — product decision */}
 
       {showRoadmapModal && (
         <RoadmapModal

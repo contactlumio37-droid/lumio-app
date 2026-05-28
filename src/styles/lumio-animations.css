@@ -62,6 +62,22 @@
 }
 .lumio-fade-out { animation: lumio-fade-out 250ms cubic-bezier(0.4,0,0.2,1) both; }
 
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .lumio-step-fwd,
+  .lumio-step-bwd,
+  .lumio-progress-active,
+  .lumio-float,
+  .lumio-glow-pulse,
+  .lumio-fade-up,
+  .lumio-dot-pulse,
+  .lumio-slide-down,
+  .lumio-fade-out {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* Custom range input (intensity slider) */
 .lumio-range {
   -webkit-appearance: none;
