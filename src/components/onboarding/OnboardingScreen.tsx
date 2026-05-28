@@ -20,36 +20,43 @@ const T: Record<SupportedLang, {
   step1Title: string; step1Sub: string; step1Btn: string
   step2Title: string; feat1: string; feat2: string; feat3: string; step2Btn: string
   step3Title: string; step3Sub: string; step3Btn: string
+  skip: string; back: string
 }> = {
   fr: {
     step1Title: 'Bienvenue sur Lumio 🌙', step1Sub: 'Ton compagnon de bien-être mental au quotidien', step1Btn: 'Découvrir',
     step2Title: 'Ce que Lumio fait pour toi', feat1: '📝 Suis ton humeur et tes habitudes', feat2: '💭 Décharge tes pensées en journal libre', feat3: '🔥 Garde la dynamique avec tes séries', step2Btn: 'Continuer',
     step3Title: 'Tout est prêt !', step3Sub: 'Prends soin de toi, un jour à la fois.', step3Btn: 'Commencer →',
+    skip: 'Passer', back: '← Retour',
   },
   en: {
     step1Title: 'Welcome to Lumio 🌙', step1Sub: 'Your daily mental wellness companion', step1Btn: 'Discover',
     step2Title: 'What Lumio does for you', feat1: '📝 Track your mood and habits', feat2: '💭 Journal your thoughts freely', feat3: '🔥 Keep your streak going', step2Btn: 'Continue',
     step3Title: "You're all set!", step3Sub: 'Take care of yourself, one day at a time.', step3Btn: 'Get started →',
+    skip: 'Skip', back: '← Back',
   },
   es: {
     step1Title: 'Bienvenido a Lumio 🌙', step1Sub: 'Tu compañero diario de bienestar mental', step1Btn: 'Descubrir',
     step2Title: 'Lo que Lumio hace por ti', feat1: '📝 Registra tu estado de ánimo y hábitos', feat2: '💭 Escribe libremente en tu diario', feat3: '🔥 Mantén tu racha', step2Btn: 'Continuar',
     step3Title: '¡Todo listo!', step3Sub: 'Cuídate, un día a la vez.', step3Btn: 'Comenzar →',
+    skip: 'Omitir', back: '← Volver',
   },
   de: {
     step1Title: 'Willkommen bei Lumio 🌙', step1Sub: 'Dein täglicher Begleiter für mentales Wohlbefinden', step1Btn: 'Entdecken',
     step2Title: 'Was Lumio für dich tut', feat1: '📝 Verfolge deine Stimmung und Gewohnheiten', feat2: '💭 Schreibe deine Gedanken frei auf', feat3: '🔥 Halte deine Serie am Leben', step2Btn: 'Weiter',
     step3Title: 'Alles bereit!', step3Sub: 'Pass auf dich auf, einen Tag nach dem anderen.', step3Btn: 'Loslegen →',
+    skip: 'Überspringen', back: '← Zurück',
   },
   it: {
     step1Title: 'Benvenuto su Lumio 🌙', step1Sub: 'Il tuo compagno quotidiano per il benessere mentale', step1Btn: 'Scoprire',
     step2Title: 'Cosa fa Lumio per te', feat1: '📝 Traccia il tuo umore e le tue abitudini', feat2: '💭 Scrivi liberamente nel diario', feat3: '🔥 Mantieni la tua serie', step2Btn: 'Continua',
     step3Title: 'Tutto pronto!', step3Sub: 'Prenditi cura di te, un giorno alla volta.', step3Btn: 'Inizia →',
+    skip: 'Salta', back: '← Indietro',
   },
   pt: {
     step1Title: 'Bem-vindo ao Lumio 🌙', step1Sub: 'O teu companheiro diário de bem-estar mental', step1Btn: 'Descobrir',
     step2Title: 'O que o Lumio faz por ti', feat1: '📝 Acompanha o teu humor e hábitos', feat2: '💭 Escreve os teus pensamentos livremente', feat3: '🔥 Mantém a tua sequência', step2Btn: 'Continuar',
     step3Title: 'Tudo pronto!', step3Sub: 'Cuida de ti, um dia de cada vez.', step3Btn: 'Começar →',
+    skip: 'Saltar', back: '← Voltar',
   },
 }
 
@@ -57,6 +64,12 @@ const BTN: React.CSSProperties = {
   width: '100%', padding: '14px', borderRadius: 14, border: 'none',
   background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
   color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+}
+
+const NAV_BTN: React.CSSProperties = {
+  background: 'none', border: 'none', color: '#6B7280',
+  fontSize: 14, cursor: 'pointer', padding: '10px',
+  minWidth: 44, minHeight: 44,
 }
 
 function Dots({ step }: { step: number }) {
@@ -73,13 +86,29 @@ function Dots({ step }: { step: number }) {
   )
 }
 
-function Screen({ step, children }: { step: number; children: ReactNode }) {
+function Screen({ step, children, backLabel, skipLabel, onBack, onSkip }: {
+  step: number; children: ReactNode
+  backLabel?: string; skipLabel?: string
+  onBack?: () => void; onSkip?: () => void
+}) {
   return (
     <div style={{
       position: 'fixed', inset: 0, background: '#0f0f23',
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '32px 24px', fontFamily: 'sans-serif',
     }}>
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '16px 8px',
+      }}>
+        {onBack
+          ? <button onClick={onBack} style={NAV_BTN}>{backLabel}</button>
+          : <div style={{ minWidth: 44 }} />}
+        {onSkip
+          ? <button onClick={onSkip} style={NAV_BTN}>{skipLabel}</button>
+          : <div style={{ minWidth: 44 }} />}
+      </div>
       <div style={{ maxWidth: 360, width: '100%', textAlign: 'center' }}>
         {children}
         <Dots step={step} />
@@ -100,7 +129,7 @@ export function OnboardingScreen({ userId, onComplete }: Props) {
 
   if (step === 0) {
     return (
-      <Screen step={0}>
+      <Screen step={0} skipLabel={t.skip} onSkip={handleComplete}>
         <div style={{ fontSize: 64, marginBottom: 24 }}>🌙</div>
         <h1 style={{ color: '#f9fafb', fontSize: 26, fontWeight: 800, margin: '0 0 12px', lineHeight: 1.2 }}>
           {t.step1Title}
@@ -115,7 +144,7 @@ export function OnboardingScreen({ userId, onComplete }: Props) {
 
   if (step === 1) {
     return (
-      <Screen step={1}>
+      <Screen step={1} backLabel={t.back} skipLabel={t.skip} onBack={() => setStep(0)} onSkip={handleComplete}>
         <h2 style={{ color: '#f9fafb', fontSize: 22, fontWeight: 800, margin: '0 0 24px', lineHeight: 1.2 }}>
           {t.step2Title}
         </h2>
@@ -134,7 +163,7 @@ export function OnboardingScreen({ userId, onComplete }: Props) {
   }
 
   return (
-    <Screen step={2}>
+    <Screen step={2} backLabel={t.back} onBack={() => setStep(1)}>
       <div style={{ fontSize: 64, marginBottom: 24 }}>✨</div>
       <h2 style={{ color: '#f9fafb', fontSize: 26, fontWeight: 800, margin: '0 0 12px', lineHeight: 1.2 }}>
         {t.step3Title}
