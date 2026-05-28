@@ -2300,6 +2300,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
             {!companionAnimal && !companion.loading && (
               <CompanionSelector
                 userId={userId}
+                lang={lang}
                 onSelect={animal => setCompanionAnimal(animal)}
               />
             )}
