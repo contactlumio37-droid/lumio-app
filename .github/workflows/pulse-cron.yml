@@ -1,10 +1,8 @@
 name: Pulse Runner — Hourly Cron
-
 on:
   schedule:
     - cron: '0 * * * *'
   workflow_dispatch: {}
-
 jobs:
   trigger-pulse:
     runs-on: ubuntu-latest
@@ -13,6 +11,7 @@ jobs:
         run: |
           curl -sf -X POST \
             "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/pulse-runner" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "x-pulse-secret: ${{ secrets.PULSE_SECRET }}" \
             -H "Content-Type: application/json" \
             --max-time 30
