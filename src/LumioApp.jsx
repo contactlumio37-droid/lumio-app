@@ -22,6 +22,13 @@ import { initRevenueCat } from "./services/revenuecatService";
 import { BottomNav } from "./components/nav/BottomNav";
 import { Home, PenLine, TrendingUp, MessageCircle, Settings, Wrench } from "lucide-react";
 
+// ─── Gender mapping ───────────────────────────────────────────────────────────
+// UI layer uses descriptive keys; DB constraint accepts only 'm' | 'f' | 'n' | NULL.
+const GENDER_UI_TO_DB = { male: 'm', female: 'f', nb: 'n', na: null };
+const GENDER_DB_TO_UI = { m: 'male', f: 'female', n: 'nb' };
+const genderToDb = (uiVal) => GENDER_UI_TO_DB[uiVal] ?? null;
+const genderToUi = (dbVal) => GENDER_DB_TO_UI[dbVal] ?? 'na';
+
 // ─── i18n ─────────────────────────────────────────────────────────────────────
 const I18N = {
   fr: {
@@ -2118,7 +2125,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
           if (p.language) setLang(p.language);
           if (p.theme) setTheme(p.theme);
           if (p.accent) setAccent(p.accent);
-          if (p.gender) setGender(p.gender);
+          setGender(genderToUi(p.gender));
           if (typeof p.notifications === "boolean") setNotifications(p.notifications);
           if (p.reminder_time) setReminderTime(p.reminder_time);
           if (p.first_name) setFirstName(p.first_name);
@@ -2155,7 +2162,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
           language: s.lang,
           theme: s.theme,
           accent: s.accent,
-          gender: s.gender,
+          gender: genderToDb(s.gender),
           notifications: s.notifications,
           reminder_time: s.reminderTime,
           first_name: s.firstName,
@@ -2185,7 +2192,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
       const s = stateSnap.current;
       supabase.from("profiles").upsert({
         id: userId,
-        language: s.lang, theme: s.theme, accent: s.accent, gender: s.gender,
+        language: s.lang, theme: s.theme, accent: s.accent, gender: genderToDb(s.gender),
         notifications: s.notifications, reminder_time: s.reminderTime,
         first_name: s.firstName, last_name: s.lastName,
         moods: s.moods, trackers: s.trackers, widgets: s.widgets,
