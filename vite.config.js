@@ -39,12 +39,23 @@ export default defineConfig({
             },
           },
           {
-            // Google Fonts — cache-first (never changes for a given URL)
-            urlPattern: ({ url }) => url.hostname.includes("fonts.googleapis.com") || url.hostname.includes("fonts.gstatic.com"),
+            // Google Fonts stylesheets — stale-while-revalidate (CSS may update)
+            urlPattern: ({ url }) => url.hostname.includes("fonts.googleapis.com"),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "google-fonts-stylesheets",
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Google Fonts files — cache-first; status:0 allows opaque cross-origin responses
+            urlPattern: ({ url }) => url.hostname.includes("fonts.gstatic.com"),
             handler: "CacheFirst",
             options: {
-              cacheName: "google-fonts",
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheName: "google-fonts-webfonts",
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],
