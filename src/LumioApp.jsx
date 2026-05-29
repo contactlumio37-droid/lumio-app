@@ -2099,11 +2099,21 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     if (!userId) { fsLoaded.current = true; return; }
     const load = async () => {
       try {
-        const { data: p } = await supabase
+        const { data: p, error: loadError } = await supabase
           .from("profiles")
           .select("language,theme,accent,gender,notifications,reminder_time,first_name,last_name,moods,trackers,widgets,objectives,journal_entries,days_data,companion_animal")
           .eq("id", userId)
           .single();
+        if (loadError && loadError.code !== "PGRST116") {
+          console.error("Supabase load error:", loadError);
+        }
+        // Create profile if it doesn't exist (e.g. Google OAuth users)
+        if (!p) {
+          const { error: insertError } = await supabase.from("profiles").insert({ id: userId });
+          if (insertError && insertError.code !== "23505") {
+            console.error("Supabase profile create error:", insertError);
+          }
+        }
         if (p) {
           if (p.language) setLang(p.language);
           if (p.theme) setTheme(p.theme);
@@ -2140,7 +2150,7 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
     saveTimer.current = setTimeout(async () => {
       const s = stateSnap.current;
       try {
-        await supabase.from("profiles").upsert({
+        const { error: saveError } = await supabase.from("profiles").upsert({
           id: userId,
           language: s.lang,
           theme: s.theme,
@@ -2157,8 +2167,9 @@ function LumioApp({ userId = "", displayName = "", userEmail = "", role = "free"
           journal_entries: s.journalEntries,
           days_data: s.data,
         });
+        if (saveError) console.error("Supabase save error:", saveError);
       } catch (err) {
-        console.error("Supabase save error:", err);
+        console.error("Supabase save exception:", err);
       }
     }, 1500);
   }, [userId]);
